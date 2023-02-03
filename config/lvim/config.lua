@@ -10,7 +10,7 @@ an executable
 
 -- general
 lvim.log.level = "warn"
-lvim.format_on_save.enabled = false
+lvim.format_on_save.enabled = true
 lvim.colorscheme = "lunar"
 -- to disable icons and use a minimalist setup, uncomment the following
 -- lvim.use_icons = false
@@ -43,6 +43,9 @@ lvim.keys.normal_mode["<C-s>"] = ":w<cr>"
 --     ["<C-k>"] = actions.move_selection_previous,
 --   },
 -- }
+--
+-- lvim.keymap.set('n', '<leader>h', ':Spectre')
+lvim.keys.normal_mode["<C-h>"] = ":Spectre<cr>"
 
 -- Change theme settings
 -- lvim.builtin.theme.options.dim_inactive = true
@@ -163,8 +166,33 @@ lvim.builtin.treesitter.highlight.enable = true
 -- }
 
 -- Additional Plugins
+--
 lvim.plugins = {
-  { "tpope/vim-commentary" }
+  { 'wfxr/minimap.vim' },
+  {
+    "windwp/nvim-spectre",
+    event = "BufRead",
+    config = function()
+      require("spectre").setup()
+    end,
+  },
+  {
+    "f-person/git-blame.nvim",
+    event = "BufRead",
+    config = function()
+      vim.cmd "highlight default link gitblame SpecialComment"
+      vim.g.gitblame_enabled = 0
+    end,
+  },
+  {
+    "andymass/vim-matchup",
+    event = "CursorMoved",
+    config = function()
+      vim.g.matchup_matchparen_offscreen = { method = "popup" }
+    end,
+  },
+  -- { 'junegunn/fzf', run = ":call fzf#install()" },
+  -- { 'junegunn/fzf.vim' }
   --     {
   --       "folke/trouble.nvim",
   --       cmd = "TroubleToggle",
@@ -185,5 +213,5 @@ lvim.plugins = {
 --   end,
 -- })
 --
--- CUSTOM 
+-- CUSTOM
 vim.opt.relativenumber = true
