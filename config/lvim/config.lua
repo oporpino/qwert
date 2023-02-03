@@ -46,6 +46,9 @@ lvim.keys.normal_mode["<C-s>"] = ":w<cr>"
 --
 -- lvim.keymap.set('n', '<leader>h', ':Spectre')
 lvim.keys.normal_mode["<C-h>"] = ":Spectre<cr>"
+lvim.keys.normal_mode["<leader>dv"] = ":DiffviewOpen<cr>"
+lvim.keys.normal_mode["<leader>dc"] = ":DiffviewClose<cr>"
+
 
 -- Change theme settings
 -- lvim.builtin.theme.options.dim_inactive = true
@@ -191,12 +194,11 @@ lvim.plugins = {
       vim.g.matchup_matchparen_offscreen = { method = "popup" }
     end,
   },
-  -- { 'junegunn/fzf', run = ":call fzf#install()" },
-  -- { 'junegunn/fzf.vim' }
-  --     {
-  --       "folke/trouble.nvim",
-  --       cmd = "TroubleToggle",
-  --     },
+  {
+    "sindrets/diffview.nvim",
+    event = "BufRead",
+  },
+  { "jbyuki/instant.nvim" }
 }
 
 -- Autocommands (https://neovim.io/doc/user/autocmd.html)
