@@ -198,7 +198,17 @@ lvim.plugins = {
     "sindrets/diffview.nvim",
     event = "BufRead",
   },
-  { "jbyuki/instant.nvim" }
+  { "jbyuki/instant.nvim" },
+  {
+    "nacro90/numb.nvim",
+    event = "BufRead",
+    config = function()
+      require("numb").setup {
+        show_numbers = true, -- Enable 'number' for the window while peeking
+        show_cursorline = true, -- Enable 'cursorline' for the window while peeking
+      }
+    end,
+  },
 }
 
 -- Autocommands (https://neovim.io/doc/user/autocmd.html)
@@ -217,3 +227,6 @@ lvim.plugins = {
 --
 -- CUSTOM
 vim.opt.relativenumber = true
+vim.g.instant_username = "gporpino"
+
+vim.opt.clipboard = unnamedplus
