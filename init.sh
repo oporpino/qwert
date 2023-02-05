@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export QWERT_DIR=$HOME/.qwert
+QWERT_DIR=$HOME/.qwert
 QWERT_CONFIG_DIR=$HOME/.config/qwert
 QWERT_CUSTOM_ZSH_FILE=$HOME/.config/qwert/zsh/init.sh
 
@@ -17,3 +17,5 @@ PATH="${QWERT_BIN}:$PATH"
 if [ -f $QWERT_CUSTOM_ZSH_FILE ]; then
     $QWERT_CUSTOM_ZSH_FILE
 fi
+
+unset QWERT_CONFIG_DIR QWERT_CUSTOM_ZSH_FILE QWERT_BIN
