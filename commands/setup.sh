@@ -1,8 +1,8 @@
 #!/bin/bash
 
-subaction=$1
+subcommand=$1
 
-case $subaction in
+case $subcommand in
 "macos")
     $QWERT_DIR/commands/setup/macos/all.sh
 ;;
