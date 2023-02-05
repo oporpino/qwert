@@ -1,6 +1,10 @@
-#!/usr/bin/zsh
+#!/bin/bash
 
 alias reload!="source ~/.zshrc"
 
-tmux attach || tmux new
+if [ -z $TMUX ]; then
+    if ! $(exec tmux attach -t qwert); then
+        exec tmux new -s qwert
+    fi
+fi
 

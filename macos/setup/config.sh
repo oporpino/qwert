@@ -4,6 +4,8 @@
 QWERT_USER_CONFIG_DIR=$HOME/.config/qwert
 QWERT_DEFAULTS_CONFIG_DIR=$QWERT_DIR/shared/config
 
+echo "> Initializing setup of configuratons"
+
 # ZSH ------------------------------------------------------------------------------------
 # creating config dirs
 [[ ! -d "$QWERT_USER_CONFIG_DIR/zsh" ]] && mkdir -p "$QWERT_USER_CONFIG_DIR/zsh"
@@ -12,6 +14,8 @@ QWERT_DEFAULTS_CONFIG_DIR=$QWERT_DIR/shared/config
 if [ ! -f "$QWERT_USER_CONFIG_DIR/zsh/init.sh" ]; then
     echo "  - Create custom zsh init at $QWERT_USER_CONFIG_DIR."
     cp $QWERT_DEFAULTS_CONFIG_DIR/zsh/init.sh $QWERT_USER_CONFIG_DIR/zsh/init.sh
+else
+    echo "  - [warn] User custom ZSH ir already configured at $QWERT_USER_CONFIG_DIR."
 fi
 
 # TMUX -----------------------------------------------------------------------------------
@@ -25,7 +29,9 @@ if [ ! -f "$QWERT_USER_CONFIG_DIR/tmux/tmux.conf" ]; then
 
     echo "  - Backup and link custom tmux.conf"
     mv $HOME/.tmux.conf $HOME/.tmux.conf.bkp
-    ln -s $QWERT_DEFAULTS_CONFIG_DIR/tmux/tmux.conf $HOME/.tmux.conf
+    ln -s $QWERT_USER_CONFIG_DIR/tmux/tmux.conf $HOME/.tmux.conf
+else
+    echo "  - [warn] User custom TMUX ir already configured at $QWERT_USER_CONFIG_DIR."
 fi
 
 # LVIM -----------------------------------------------------------------------------------
@@ -40,4 +46,6 @@ if [ ! -f "$QWERT_USER_CONFIG_DIR/lvim/config.lua" ]; then
     echo "  - Backup and link custom config.lua"
     mv $HOME/.config/lvim/config.lua $HOME/.config/lvim/config.lua.bkp
     ln -s $QWERT_DEFAULTS_CONFIG_DIR/lvim/config.lua $HOME/.config/lvim/config.lua
+else
+    echo "  - [warn] User custom LVIM ir already configured at $QWERT_USER_CONFIG_DIR."
 fi

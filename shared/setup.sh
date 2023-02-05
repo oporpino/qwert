@@ -10,3 +10,7 @@ case $subaction in
     echo "I dont understand what you want."
 ;;
 esac
+
+echo -e "\n[ATTENTION] Run ':PackerSync' when open the Lunar Vim to install packages"
+echo -e "[ATTENTION] Run '<prefix>+I' when open the tmux to install plugins"
+echo -e "\nEnjoy QWERTT!!!"
