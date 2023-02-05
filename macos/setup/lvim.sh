@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# install homebrew
+# install lunar vim
 which -s lvim
 if [[ $? != 0 ]] ; then
     echo "  - Start to install Lunar Vim"
