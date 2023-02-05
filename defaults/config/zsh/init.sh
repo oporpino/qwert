@@ -6,5 +6,3 @@ if [ -z $TMUX ]; then
         exec tmux new -s qwert
     fi
 fi
-
-alias reload!=${source ~/.zshrc}
