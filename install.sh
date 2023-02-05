@@ -3,6 +3,7 @@
 ZSH_FILE=$HOME/.zshrc
 OH_MY_ZSH_DIR=$HOME/.oh-my-zsh
 QWERT_INIT_FILE='"$HOME/.qwert/init.sh"'
+QWERT_INIT_COMPLETIONS_FILE='"$HOME/.qwert/init.completions.sh"'
 
 echo '> Installing dependencies:'
 if [ ! -d $OH_MY_ZSH_DIR ]
@@ -20,5 +21,15 @@ if ! grep -q $QWERT_INIT_FILE "$ZSH_FILE"; then
 else
     echo "  - [warn] QWERT is already configured into $ZSH_FILE. No action needed."
 fi
+
+echo '> Configuring initialization completions:'
+if ! grep -q $QWERT_INIT_COMPLETIONS_FILE "$ZSH_FILE"; then
+    echo "  - Add QWERT to $ZSH_FILE"
+    echo ". $QWERT_INIT_COMPLETIONS_FILE" >> $ZSH_FILE
+else
+    echo "  - [warn] QWERT completions is already configured into $ZSH_FILE. No action needed."
+fi
+
+echo '> QWERT was sucessful installed'
 
 unset ZSH_FILE OH_MY_ZSH_DIR QWERT_INIT_FILE

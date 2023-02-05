@@ -9,12 +9,4 @@ else
     echo "  - [warn] LunarVim is already installed. To reinstall please check the LunarVim documentation."
 fi
 
-# installing gnu-sed for lvim plugin
-echo "  - Instaling Lunar Vim plugins dependencies"
-which -s sed
-if [[ $? != 0 ]] ; then
-    echo "    + Instaling gnu-sed"
-    brew install gnu-sed
-else
-    echo "    + [warn] gnu-sed is already installed"
-fi
+
