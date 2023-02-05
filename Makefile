@@ -47,7 +47,9 @@ lvim-rollback:
 	test -f $(LVIM_HOME)/$(LVIM_FILE).bkp && mv -f $(LVIM_HOME)/$(LVIM_FILE).bkp $(LVIM_HOME)/$(LVIM_FILE)
 
 # action section
-install: tmux-setup lvim-setup
+install:
+	./shared/
+	tmux-setup lvim-setup
 
 unistall: tmux-rollback lvim-rollback
 

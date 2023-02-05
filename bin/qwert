@@ -1,0 +1,14 @@
+#!/bin/bash
+# export QWERT_DIR=$HOME/.qwert
+
+action=$1
+subaction=$2
+
+case $action in
+"setup")
+    $QWERT_DIR/shared/setup.sh $subaction
+;;
+*)
+    echo "foo or bar was not sent"
+;;
+esac
