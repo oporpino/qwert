@@ -2,10 +2,10 @@
 
 echo "> Initializing setup enviroment for macos"
 
-. $QWERT_DIR/macos/setup/homebrew.sh
-. $QWERT_DIR/macos/setup/lvim.sh
-. $QWERT_DIR/macos/setup/tmux.sh
-. $QWERT_DIR/macos/setup/config.sh
+. $QWERT_DIR/commands/setup/macos/homebrew.sh
+. $QWERT_DIR/commands/setup/macos/lvim.sh
+. $QWERT_DIR/commands/setup/macos/tmux.sh
+. $QWERT_DIR/commands/setup/macos/config.sh
 
 echo "> Setup os macos enviroment finished."
 

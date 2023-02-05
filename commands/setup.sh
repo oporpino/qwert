@@ -4,7 +4,7 @@ subaction=$1
 
 case $subaction in
 "macos")
-    $QWERT_DIR/macos/setup/all.sh
+    $QWERT_DIR/commands/setup/macos/all.sh
 ;;
 "linux")
     echo "QWERT for linux is not implemented yet. Fell free to constribute with us."

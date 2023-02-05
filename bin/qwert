@@ -1,11 +1,14 @@
 #!/bin/bash
 
-action=$1
-subaction=$2
+command=$1
+subcommand=$2
 
-case $action in
+case $command in
 "setup")
-    $QWERT_DIR/shared/setup.sh $subaction
+    $QWERT_DIR/commands/setup.sh $subcommand
+;;
+"status")
+    $QWERT_DIR/commands/status.sh $subcommand
 ;;
 *)
     echo "I dont understand what you want. Pleas check the parameters"
