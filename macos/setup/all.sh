@@ -9,3 +9,7 @@ echo "> Initializing setup enviroment for macos"
 
 echo "> Setup os macos enviroment finished."
 
+echo -e "\n[ATTENTION] Run ':PackerSync' when open the Lunar Vim to install packages"
+echo -e "[ATTENTION] Run '<prefix>+I' when open the tmux to install plugins"
+echo -e "\nEnjoy QWERTT!!!"
+

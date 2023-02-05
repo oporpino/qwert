@@ -6,11 +6,11 @@ case $subaction in
 "macos")
     $QWERT_DIR/macos/setup/all.sh
 ;;
+"linux")
+    echo "QWERT for linux is not implemented yet. Fell free to constribute with us."
+;;
 *)
-    echo "I dont understand what you want."
+    echo "I dont understand what you want. Please check the parameters"
 ;;
 esac
 
-echo -e "\n[ATTENTION] Run ':PackerSync' when open the Lunar Vim to install packages"
-echo -e "[ATTENTION] Run '<prefix>+I' when open the tmux to install plugins"
-echo -e "\nEnjoy QWERTT!!!"

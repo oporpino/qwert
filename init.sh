@@ -1,6 +1,6 @@
 #!/bin/bash
 
-QWERT_DIR=$HOME/.qwert
+export QWERT_DIR=$HOME/.qwert
 QWERT_CONFIG_DIR=$HOME/.config/qwert
 QWERT_CUSTOM_ZSH_FILE=$HOME/.config/qwert/zsh/init.sh
 
