@@ -16,7 +16,9 @@ fi
 echo '> Configuring initialization:'
 if ! grep -q $QWERT_INIT_FILE "$ZSH_FILE"; then
     echo "  - Add QWERT to $ZSH_FILE"
-    echo ". $QWERT_INIT_FILE" >> $ZSH_FILE
+    echo ". $QWERT_INIT_FILE" | cat - $ZSH_FILE > temp && mv temp $ZSH_FILE
 else
     echo "  - [warn] QWERT is already configured into $ZSH_FILE. No action needed."
 fi
+
+unset ZSH_FILE OH_MY_ZSH_DIR QWERT_INIT_FILE
