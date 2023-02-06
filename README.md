@@ -1,12 +1,14 @@
 # QWERT
-The manager of managers.
+### The manager of managers!
 
 Setup your dev enviroment with all your tools in minutes.
 
 # Install
 Run
 
-`sh -c "$(curl -fsSL  https://raw.githubusercontent.com/gporpino/qwert/main/scripts/install.sh)"`
+```
+sh -c "$(curl -fsSL  https://raw.githubusercontent.com/gporpino/qwert/main/scripts/install.sh)"
+```
 
 
 # Usage
