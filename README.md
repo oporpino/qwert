@@ -54,3 +54,13 @@ To save your customization you just need to save `.config/qwert` folder, and all
 
 # Dependencies
 The qwert needs `curl`, `oh-my-zsh` to works properly. Don`t worry, we will install it on QWERT instalation.
+
+# Coming Soon
+We will implements many others capabilities. 
+
+Roadmap tools
+- ASDF
+- PowerShell 10k
+- Postgree
+
+Please, contribute with us sending PRs! 🙏
