@@ -1,5 +1,5 @@
 # QWERT
-### A dev tools manager!
+### The dev tools manager!
 
 Setup your dev enviroment with all your tools in minutes and just once!
 
