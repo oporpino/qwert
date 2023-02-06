@@ -1,7 +1,7 @@
 # QWERT
-### The manager of managers!
+### A dev tools manager!
 
-Setup your dev enviroment with all your tools in minutes.
+Setup your dev enviroment with all your tools in minutes and just once!
 
 # Install
 Install via `curl`. 
