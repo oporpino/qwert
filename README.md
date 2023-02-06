@@ -30,9 +30,6 @@ qwert setup macos
 - LunarVim
 - Tmux
 
-## Customization
-We also made some custom mods to improve the usage of tools, but you can extend and change as you want.
-
 ### TMUX:
 - Plugin Manager Installed with some plugins by default. Run `<prefix> + I` to install plugins.
 - Bind some intuitive shortcuts.
@@ -49,6 +46,11 @@ See all custom shortcuts at `~/.tmux.conf`
 
 ### Homebrew
 - Install `Homebrew` and some plugins
+
+## Customization
+We also made some custom mods to improve the usage of tools, but you can extend and change as you want.
+
+To save your customization you just need to save `.config/qwert` folder, and all your enviroment will be the same. We recomend to you save the `.config` in a private repository. 
 
 # Dependencies
 The qwert needs `curl`, `oh-my-zsh` to works properly. Don`t worry, we will install it on QWERT instalation.
