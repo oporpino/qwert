@@ -7,7 +7,7 @@ Setup your dev enviroment with all your tools in minutes and just once!
 Install via `curl`. 
 
 ```
-sh -c "$(curl -fsSL  https://raw.githubusercontent.com/gporpino/qwert/v0.1.0/scripts/install.sh)"
+sh -c "$(curl -fsSL  https://raw.githubusercontent.com/gporpino/qwert/v0.1.1/scripts/install.sh)"
 ```
 
 
