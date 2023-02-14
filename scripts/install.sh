@@ -2,6 +2,7 @@
 
 ZSH_FILE=$HOME/.zshrc
 OH_MY_ZSH_DIR=$HOME/.oh-my-zsh
+QWERT_DIR=$HOME/.qwert
 QWERT_INIT_FILE='"$HOME/.qwert/init.sh"'
 QWERT_INIT_COMPLETIONS_FILE='"$HOME/.qwert/scripts/completions.sh"'
 QWERT_RELOAD_CMD='reload!="source ~/.zshrc"'
@@ -15,7 +16,18 @@ else
     echo "  - [warn] Oh-My-Zsh is already installed. If you need to reinstall please remove $OH_MY_ZSH_DIR, or check Oh-My-Zsh documentation."
 fi
 
-echo '> Configuring initialization:'
+echo '> Setup QWERT:'
+if [ ! -d $QWERT_DIR ]
+then
+    echo '  - Download QWERT source code'
+    git clone https://github.com/gporpino/qwert.git $QWERT_DIR
+    echo '  - Configuring QWERT'
+    rm -rf $QWERT_DIR/.git
+else
+    echo "  - [warn] QWERT is already installed. If you need to reinstall please remove $QWERT_DIR, or check QWERT documentation."
+fi
+
+echo '> Configuring QWERT initialization:'
 if ! grep -q $QWERT_INIT_FILE "$ZSH_FILE"; then
     echo "  - Add QWERT to $ZSH_FILE"
     echo ". $QWERT_INIT_FILE" | cat - $ZSH_FILE > temp && mv temp $ZSH_FILE
