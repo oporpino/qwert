@@ -57,10 +57,10 @@ id -u $username
 if [[ $? != 0 ]] ; then
   echo "  - Start to install Paring"
   echo "  + - Create user for safety paring"
-  sudo _create_user $username $password
+  _create_user $username $password
 
   echo "  + - Config Pair user home"
-  sudo _config_pair_user_home $username 
+  _config_pair_user_home $username 
 else
   echo "  - [warn] Paring is already installed. To reinstall please check the TMUX documentation."
 fi
