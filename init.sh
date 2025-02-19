@@ -14,8 +14,9 @@ QWERT_BIN="${QWERT_DIR}/bin"
 # add to front of $PATH
 PATH="${QWERT_BIN}:$PATH"
 
-if [ -f $QWERT_CUSTOM_ZSH_FILE ]; then
-    $QWERT_CUSTOM_ZSH_FILE
+if [ -f $QWERT_CUSTOM_ZSH_FILE ]; then  
+  echo "Sourcing custom zsh file: $QWERT_CUSTOM_ZSH_FILE"
+  . $QWERT_CUSTOM_ZSH_FILE
 fi
 
 unset QWERT_CONFIG_DIR QWERT_CUSTOM_ZSH_FILE QWERT_BIN
