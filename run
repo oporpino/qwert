@@ -1,8 +1,14 @@
 #!/bin/bash
 
+QWERT_SCRIPT_NAME=$1
+[ -z "$QWERT_SCRIPT_NAME" ] && {
+  echo "Error: You need to pass a parameter (e.g. init or end)"
+  exit 1
+}
+
 export QWERT_DIR=$HOME/.qwert
 QWERT_CONFIG_DIR=$HOME/.config/qwert
-QWERT_CUSTOM_ZSH_FILE=$HOME/.config/qwert/zsh/init.sh
+QWERT_CUSTOM_ZSH_FILE=$HOME/.config/qwert/zsh/${QWERT_SCRIPT_NAME}.sh
 
 # Add qwert to PATH
 #
@@ -14,9 +20,9 @@ QWERT_BIN="${QWERT_DIR}/bin"
 # add to front of $PATH
 PATH="${QWERT_BIN}:$PATH"
 
-if [ -f $QWERT_CUSTOM_ZSH_FILE ]; then  
-  echo "Sourcing custom zsh file: $QWERT_CUSTOM_ZSH_FILE"
+[ -f $QWERT_CUSTOM_ZSH_FILE ] && {
+  [ "$QWERT_VERBOSE" = "1" ] && echo "Sourcing custom zsh file: $QWERT_CUSTOM_ZSH_FILE"
   . $QWERT_CUSTOM_ZSH_FILE
-fi
+}
 
-unset QWERT_CONFIG_DIR QWERT_CUSTOM_ZSH_FILE QWERT_BIN
+unset QWERT_CONFIG_DIR QWERT_CUSTOM_ZSH_FILE QWERT_BIN QWERT_SCRIPT_NAME

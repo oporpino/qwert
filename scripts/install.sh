@@ -3,8 +3,9 @@
 ZSH_FILE=$HOME/.zshrc
 OH_MY_ZSH_DIR=$HOME/.oh-my-zsh
 QWERT_DIR=$HOME/.qwert
-QWERT_INIT_FILE='"$HOME/.qwert/init.sh"'
+QWERT_INIT_FILE='$HOME/.qwert/run init'
 QWERT_INIT_COMPLETIONS_FILE='"$HOME/.qwert/scripts/completions.sh"'
+QWERT_END_FILE='$HOME/.qwert/run end'
 QWERT_RELOAD_CMD='reload!="source ~/.zshrc"'
 
 echo '> Installing dependencies:'
@@ -28,15 +29,17 @@ else
 fi
 
 echo '> Configuring QWERT initialization:'
-if ! grep -q $QWERT_INIT_FILE "$ZSH_FILE"; then
+if ! grep -q "$QWERT_INIT_FILE" "$ZSH_FILE"; then
     echo "  - Add QWERT to $ZSH_FILE"
     echo ". $QWERT_INIT_FILE" | cat - $ZSH_FILE > temp && mv temp $ZSH_FILE
+
+    echo ". $QWERT_END_FILE" >> $ZSH_FILE
 else
     echo "  - [warn] QWERT is already configured into $ZSH_FILE. No action needed."
 fi
 
 echo '> Configuring reload alias command:'
-if ! grep -q $QWERT_RELOAD_CMD "$ZSH_FILE"; then
+if ! grep -q "$QWERT_RELOAD_CMD" "$ZSH_FILE"; then
     echo "  - Add reload alias to $ZSH_FILE"
     echo "alias $QWERT_RELOAD_CMD" >> $ZSH_FILE
 else
@@ -44,7 +47,7 @@ else
 fi
 
 echo '> Configuring initialization completions:'
-if ! grep -q $QWERT_INIT_COMPLETIONS_FILE "$ZSH_FILE"; then
+if ! grep -q "$QWERT_INIT_COMPLETIONS_FILE" "$ZSH_FILE"; then
     echo "  - Add QWERT completions to $ZSH_FILE"
     echo ". $QWERT_INIT_COMPLETIONS_FILE" >> $ZSH_FILE
 else
@@ -53,4 +56,4 @@ fi
 
 echo '> QWERT was sucessful installed'
 
-unset ZSH_FILE OH_MY_ZSH_DIR QWERT_INIT_FILE
+unset ZSH_FILE OH_MY_ZSH_DIR QWERT_INIT_FILE QWERT_INIT_COMPLETIONS_FILE QWERT_END_FILE QWERT_RELOAD_CMD

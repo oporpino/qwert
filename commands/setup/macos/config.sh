@@ -49,3 +49,19 @@ if [ ! -f "$QWERT_USER_CONFIG_DIR/lvim/config.lua" ]; then
 else
     echo "  - [warn] User custom LVIM ir already configured at $QWERT_USER_CONFIG_DIR."
 fi
+
+# ITERM2 ---------------------------------------------------------------------------------
+# creating config dirs
+[[ ! -d "$QWERT_USER_CONFIG_DIR/iterm2" ]] && mkdir -p "$QWERT_USER_CONFIG_DIR/iterm2"
+
+# copy setup script to config dir and execute
+if [ ! -f "$QWERT_USER_CONFIG_DIR/iterm2/setup.sh" ]; then
+    echo "  - Create custom iterm2 setup script at $QWERT_USER_CONFIG_DIR."
+    cp $QWERT_DEFAULTS_CONFIG_DIR/iterm2/setup.sh $QWERT_USER_CONFIG_DIR/iterm2/setup.sh
+    chmod +x $QWERT_USER_CONFIG_DIR/iterm2/setup.sh
+
+    echo "  - Configuring iTerm2 to use custom preferences folder"
+    $QWERT_USER_CONFIG_DIR/iterm2/setup.sh
+else
+    echo "  - [warn] User custom iTerm2 is already configured at $QWERT_USER_CONFIG_DIR."
+fi
