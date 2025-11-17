@@ -3,6 +3,7 @@
 echo "> Initializing setup enviroment for macos"
 
 . $QWERT_DIR/commands/setup/macos/homebrew.sh
+. $QWERT_DIR/commands/setup/macos/delta.sh
 . $QWERT_DIR/commands/setup/macos/neovim.sh
 . $QWERT_DIR/commands/setup/macos/lvim.sh
 . $QWERT_DIR/commands/setup/macos/tmux.sh
