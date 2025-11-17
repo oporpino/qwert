@@ -7,7 +7,7 @@ Setup your dev enviroment with all your tools in minutes and just once!
 Install via `curl`. 
 
 ```
-sh -c "$(curl -fsSL  https://raw.githubusercontent.com/gporpino/qwert/v0.1.1/scripts/install.sh)"
+sh -c "$(curl -fsSL  https://raw.githubusercontent.com/gporpino/qwert/v0.1.2/scripts/install.sh)"
 ```
 
 
@@ -27,8 +27,14 @@ qwert setup macos
 ## Avaliable Tools
 
 - Homebrew
+- Git Delta
 - LunarVim
 - Tmux
+
+### Git Delta:
+- Modern syntax-highlighting pager for git, diff, and grep output
+- Automatically configured as git pager with side-by-side view
+- Enhanced diff visualization with line numbers and syntax highlighting
 
 ### TMUX:
 - Plugin Manager Installed with some plugins by default. Run `<prefix> + I` to install plugins.
