@@ -3,8 +3,8 @@
 QWERT_REF=${1:-latest}
 
 if [ "$QWERT_REF" = "latest" ]; then
-    QWERT_REF=$(curl -fsSL "https://api.github.com/repos/gporpino/qwert/releases" \
-        | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/' | head -1)
+    QWERT_REF=$(curl -fsSL "https://api.github.com/repos/gporpino/qwert/tags" \
+        | grep '"name"' | sed 's/.*"name": *"\(.*\)".*/\1/' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
     if [ -z "$QWERT_REF" ]; then
         QWERT_REF="main"
     fi

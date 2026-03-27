@@ -1,7 +1,6 @@
 #!/bin/bash
 
-curl -fsSL "https://api.github.com/repos/gporpino/qwert/releases" \
-    | grep '"tag_name"' \
-    | sed 's/.*"tag_name": *"\(.*\)".*/\1/'
-
-unset QWERT_LATEST
+curl -fsSL "https://api.github.com/repos/gporpino/qwert/tags" \
+    | grep '"name"' \
+    | sed 's/.*"name": *"\(.*\)".*/\1/' \
+    | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$'
