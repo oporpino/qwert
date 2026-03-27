@@ -11,6 +11,6 @@ fi
 
 echo "> Reinstalling QWERT version ${QWERT_VERSION}..."
 
-QWERT_FORCE=1 $QWERT_DIR/commands/update.sh "$QWERT_VERSION"
+QWERT_FORCE=1 QWERT_SILENT=1 $QWERT_DIR/commands/update.sh "$QWERT_VERSION"
 
 unset QWERT_VERSION_FILE QWERT_VERSION
