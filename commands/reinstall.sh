@@ -3,11 +3,11 @@
 QWERT_CONFIG_VERSION_FILE=$HOME/.config/qwert/version
 
 if [ ! -f "$QWERT_CONFIG_VERSION_FILE" ]; then
-    echo "  - [error] No version file found at $QWERT_CONFIG_VERSION_FILE"
-    exit 1
+    echo "  - [warn] No version file found, using main"
+    QWERT_VERSION="main"
+else
+    QWERT_VERSION=$(cat "$QWERT_CONFIG_VERSION_FILE")
 fi
-
-QWERT_VERSION=$(cat "$QWERT_CONFIG_VERSION_FILE")
 
 echo "> Reinstalling QWERT version ${QWERT_VERSION}..."
 
