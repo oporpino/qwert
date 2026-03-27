@@ -14,7 +14,8 @@ QWERT_INSTALL_URL="https://raw.githubusercontent.com/gporpino/qwert/${QWERT_REF}
 
 QWERT_SILENT=${QWERT_SILENT:-0}
 if [ "$QWERT_SILENT" = "0" ]; then
-    echo "> Updating QWERT from ${QWERT_REF}..."
+    QWERT_CURRENT=$(cat "$HOME/.qwert/version" 2>/dev/null || echo "unknown")
+    echo "> Updating QWERT from ${QWERT_CURRENT} to ${QWERT_REF}..."
 fi
 
 QWERT_VERSION="$QWERT_REF" QWERT_FORCE="1" sh -c "$(curl -fsSL "$QWERT_INSTALL_URL")"
