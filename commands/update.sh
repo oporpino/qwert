@@ -1,23 +1,10 @@
 #!/bin/bash
 
-QWERT_REPO="https://github.com/gporpino/qwert.git"
-QWERT_DIR=$HOME/.qwert
-QWERT_TMP="${QWERT_DIR}_tmp"
+QWERT_REF=${1:-main}
+QWERT_INSTALL_URL="https://raw.githubusercontent.com/gporpino/qwert/${QWERT_REF}/scripts/install.sh"
 
-echo "> Updating QWERT from main..."
+echo "> Updating QWERT from ${QWERT_REF}..."
 
-# Clone latest into a temp dir
-if ! git clone --depth 1 "$QWERT_REPO" "$QWERT_TMP"; then
-    echo "  - [error] Failed to clone QWERT repository"
-    exit 1
-fi
+QWERT_VERSION="$QWERT_REF" sh -c "$(curl -fsSL "$QWERT_INSTALL_URL")"
 
-# Replace installation, preserving nothing (no user config lives here)
-rm -rf "$QWERT_DIR"
-mv "$QWERT_TMP" "$QWERT_DIR"
-rm -rf "$QWERT_DIR/.git"
-
-echo "> QWERT updated successfully"
-echo "  - Reload your shell to apply changes: source ~/.zshrc"
-
-unset QWERT_REPO QWERT_DIR QWERT_TMP
+unset QWERT_REF QWERT_INSTALL_URL

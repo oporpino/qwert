@@ -11,7 +11,10 @@ case $command in
     $QWERT_DIR/commands/status.sh $subcommand
 ;;
 "update")
-    $QWERT_DIR/commands/update.sh
+    $QWERT_DIR/commands/update.sh $subcommand
+;;
+"reinstall")
+    $QWERT_DIR/commands/reinstall.sh
 ;;
 *)
     echo "I dont understand what you want. Pleas check the parameters"
