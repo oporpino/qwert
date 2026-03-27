@@ -21,20 +21,25 @@ fi
 echo '> Setup QWERT:'
 if [ -d $QWERT_DIR ]
 then
-    echo "  - [warn] QWERT is already installed at $QWERT_DIR"
-    read -p "  - Do you want to backup the existing installation? (y/n): " backup_choice
-
-    if [[ "$backup_choice" == "y" || "$backup_choice" == "Y" ]]; then
-        echo "  - Creating backup..."
-        if [ -d "${QWERT_DIR}_bkp" ]; then
-            echo "  - Removing old backup at ${QWERT_DIR}_bkp"
-            rm -rf "${QWERT_DIR}_bkp"
-        fi
-        echo "  - Renaming $QWERT_DIR to ${QWERT_DIR}_bkp"
-        mv $QWERT_DIR "${QWERT_DIR}_bkp"
-    else
+    if [ "${QWERT_FORCE}" = "1" ]; then
         echo "  - Removing existing installation..."
         rm -rf $QWERT_DIR
+    else
+        echo "  - [warn] QWERT is already installed at $QWERT_DIR"
+        read -p "  - Do you want to backup the existing installation? (y/n): " backup_choice
+
+        if [[ "$backup_choice" == "y" || "$backup_choice" == "Y" ]]; then
+            echo "  - Creating backup..."
+            if [ -d "${QWERT_DIR}_bkp" ]; then
+                echo "  - Removing old backup at ${QWERT_DIR}_bkp"
+                rm -rf "${QWERT_DIR}_bkp"
+            fi
+            echo "  - Renaming $QWERT_DIR to ${QWERT_DIR}_bkp"
+            mv $QWERT_DIR "${QWERT_DIR}_bkp"
+        else
+            echo "  - Removing existing installation..."
+            rm -rf $QWERT_DIR
+        fi
     fi
 fi
 
