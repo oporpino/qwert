@@ -1,8 +1,8 @@
 #!/bin/bash
 
-QWERT_REF=${1:-}
+QWERT_REF=${1:-latest}
 
-if [ -z "$QWERT_REF" ]; then
+if [ "$QWERT_REF" = "latest" ]; then
     QWERT_REF=$(curl -fsSL "https://api.github.com/repos/gporpino/qwert/releases/latest" \
         | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/')
     if [ -z "$QWERT_REF" ]; then
