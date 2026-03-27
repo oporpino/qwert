@@ -8,7 +8,7 @@ _completions()
 
     case ${COMP_CWORD} in
         1)
-            COMPREPLY=($(compgen -W "setup status update reinstall version" -- ${cur}))
+            COMPREPLY=($(compgen -W "setup status update reinstall version list" -- ${cur}))
             ;;
         2)
             case ${prev} in

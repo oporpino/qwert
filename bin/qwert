@@ -19,6 +19,9 @@ case $command in
 "version")
     $QWERT_DIR/commands/version.sh
 ;;
+"list")
+    $QWERT_DIR/commands/list.sh
+;;
 *)
     echo "I dont understand what you want. Pleas check the parameters"
 ;;
