@@ -3,8 +3,8 @@
 QWERT_VERSION_FILE=$HOME/.qwert/version
 
 if [ ! -f "$QWERT_VERSION_FILE" ]; then
-    echo "  - [warn] No version file found, using main"
-    QWERT_VERSION="main"
+    echo "  - [warn] No version file found, using latest"
+    QWERT_VERSION="latest"
 else
     QWERT_VERSION=$(cat "$QWERT_VERSION_FILE")
 fi
