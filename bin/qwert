@@ -10,6 +10,9 @@ case $command in
 "status")
     $QWERT_DIR/commands/status.sh $subcommand
 ;;
+"update")
+    $QWERT_DIR/commands/update.sh
+;;
 *)
     echo "I dont understand what you want. Pleas check the parameters"
 ;;
