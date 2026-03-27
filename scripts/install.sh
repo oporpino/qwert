@@ -4,7 +4,6 @@ QWERT_VERSION=${QWERT_VERSION:-main}
 ZSH_FILE=$HOME/.zshrc
 OH_MY_ZSH_DIR=$HOME/.oh-my-zsh
 QWERT_DIR=$HOME/.qwert
-QWERT_CONFIG_DIR=$HOME/.config/qwert
 QWERT_INIT_FILE='$HOME/.qwert/run init'
 QWERT_INIT_COMPLETIONS_FILE='"$HOME/.qwert/scripts/completions.sh"'
 QWERT_END_FILE='$HOME/.qwert/run end'
@@ -73,10 +72,9 @@ else
 fi
 
 echo '> Saving version:'
-mkdir -p "$QWERT_CONFIG_DIR"
-echo "$QWERT_VERSION" > "$QWERT_CONFIG_DIR/version"
-echo "  - Version ${QWERT_VERSION} saved to $QWERT_CONFIG_DIR/version"
+echo "$QWERT_VERSION" > "$QWERT_DIR/version"
+echo "  - Version ${QWERT_VERSION} saved to $QWERT_DIR/version"
 
 echo '> QWERT was sucessful installed'
 
-unset QWERT_VERSION ZSH_FILE OH_MY_ZSH_DIR QWERT_DIR QWERT_CONFIG_DIR QWERT_INIT_FILE QWERT_INIT_COMPLETIONS_FILE QWERT_END_FILE QWERT_RELOAD_CMD
+unset QWERT_VERSION ZSH_FILE OH_MY_ZSH_DIR QWERT_DIR QWERT_INIT_FILE QWERT_INIT_COMPLETIONS_FILE QWERT_END_FILE QWERT_RELOAD_CMD

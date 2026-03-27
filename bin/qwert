@@ -16,6 +16,9 @@ case $command in
 "reinstall")
     $QWERT_DIR/commands/reinstall.sh
 ;;
+"version")
+    $QWERT_DIR/commands/version.sh
+;;
 *)
     echo "I dont understand what you want. Pleas check the parameters"
 ;;
