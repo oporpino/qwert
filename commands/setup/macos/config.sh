@@ -54,13 +54,17 @@ fi
 # creating config dirs
 [[ ! -d "$QWERT_USER_CONFIG_DIR/iterm2" ]] && mkdir -p "$QWERT_USER_CONFIG_DIR/iterm2"
 
-# copy setup script to config dir and execute
+# copy setup script to config dir
 if [ ! -f "$QWERT_USER_CONFIG_DIR/iterm2/setup.sh" ]; then
     echo "  - Create custom iterm2 setup script at $QWERT_USER_CONFIG_DIR."
     cp $QWERT_DEFAULTS_CONFIG_DIR/iterm2/setup.sh $QWERT_USER_CONFIG_DIR/iterm2/setup.sh
     chmod +x $QWERT_USER_CONFIG_DIR/iterm2/setup.sh
+fi
 
-    echo "  - Configuring iTerm2 to use custom preferences folder"
+# run setup if symlink does not exist yet
+ITERM_PREFS="$HOME/Library/Preferences/com.googlecode.iterm2.plist"
+if [ ! -L "$ITERM_PREFS" ]; then
+    echo "  - Configuring iTerm2 symlink"
     $QWERT_USER_CONFIG_DIR/iterm2/setup.sh
 else
     echo "  - [warn] User custom iTerm2 is already configured at $QWERT_USER_CONFIG_DIR."
