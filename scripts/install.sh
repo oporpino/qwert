@@ -18,6 +18,7 @@ info()    { printf "  \033[1m→\033[0m  %s\n" "$*"; }
 ok()      { printf "  \033[32m✓\033[0m  %s\n" "$*"; }
 warn()    { printf "  \033[33m!\033[0m  %s\n" "$*"; }
 die()     { printf "  \033[31m✗\033[0m  %s\n" "$*" >&2; exit 1; }
+dim()     { printf "  \033[2m%s\033[0m\n" "$*"; }
 
 need() {
     command -v "$1" &>/dev/null || die "required: $1 not found"
@@ -51,6 +52,46 @@ detect_target() {
             die "unsupported OS: ${os}"
             ;;
     esac
+}
+
+# ---------------------------------------------------------------------------
+# ask config dir
+# ---------------------------------------------------------------------------
+
+ask_config_dir() {
+    local default="${HOME}/.config/qwert"
+    local input
+
+    printf "\n"
+    printf "  \033[1mConfig directory\033[0m\n"
+    dim "This is where qwert.yml and your dotfiles live."
+    dim "Save this folder in a personal git repo to replicate your environment on any machine."
+    printf "\n"
+    printf "  Location [%s]: " "${default}"
+    read -r input
+
+    if [ -z "${input}" ]; then
+        QWERT_CONFIG_DIR="${default}"
+    else
+        # Expand ~ manually
+        QWERT_CONFIG_DIR="${input/#\~/${HOME}}"
+    fi
+
+    mkdir -p "${QWERT_CONFIG_DIR}"
+    ok "Config dir: ${QWERT_CONFIG_DIR}"
+
+    # Suggest git init if not already a repo
+    if [ ! -d "${QWERT_CONFIG_DIR}/.git" ]; then
+        printf "\n"
+        warn "This folder is not a git repository."
+        printf "  Initialize it now? [Y/n]: "
+        read -r git_choice
+        if [[ -z "${git_choice}" || "${git_choice}" =~ ^[Yy]$ ]]; then
+            git -C "${QWERT_CONFIG_DIR}" init -q
+            ok "Git repo initialized at ${QWERT_CONFIG_DIR}"
+            dim "Tip: push it to GitHub and run qwert apply on any new machine."
+        fi
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -133,26 +174,35 @@ install_recipes() {
 # ---------------------------------------------------------------------------
 
 configure_shell() {
-    local rc_file path_line
+    local rc_file
 
     if [ -f "${HOME}/.zshrc" ]; then
         rc_file="${HOME}/.zshrc"
     elif [ -f "${HOME}/.bashrc" ]; then
         rc_file="${HOME}/.bashrc"
     else
-        warn "no .zshrc or .bashrc found — add ${QWERT_BIN} to your PATH manually"
+        warn "no .zshrc or .bashrc found — configure PATH and QWERT_CONFIG_DIR manually"
         return
     fi
 
-    path_line='export PATH="${HOME}/.qwert/bin:${PATH}"'
-
+    # PATH
     if grep -qF '.qwert/bin' "${rc_file}"; then
         ok "PATH already configured in ${rc_file}"
     else
-        echo "" >> "${rc_file}"
-        echo "# qwert" >> "${rc_file}"
-        echo "${path_line}" >> "${rc_file}"
+        printf '\n# qwert\n' >> "${rc_file}"
+        printf 'export PATH="${HOME}/.qwert/bin:${PATH}"\n' >> "${rc_file}"
         ok "PATH configured in ${rc_file}"
+    fi
+
+    # QWERT_CONFIG_DIR (only write if non-default)
+    local default_config="${HOME}/.config/qwert"
+    if [ "${QWERT_CONFIG_DIR}" != "${default_config}" ]; then
+        if grep -qF 'QWERT_CONFIG_DIR' "${rc_file}"; then
+            ok "QWERT_CONFIG_DIR already set in ${rc_file}"
+        else
+            printf 'export QWERT_CONFIG_DIR="%s"\n' "${QWERT_CONFIG_DIR}" >> "${rc_file}"
+            ok "QWERT_CONFIG_DIR configured in ${rc_file}"
+        fi
     fi
 }
 
@@ -167,6 +217,10 @@ main() {
     need curl
     need git
 
+    ask_config_dir
+
+    printf "\n"
+
     # Try downloading a pre-built binary; fall back to building from source
     if ! install_binary 2>/dev/null; then
         warn "no pre-built binary available for this platform"
@@ -178,7 +232,7 @@ main() {
 
     printf "\n"
     ok "qwert installed successfully"
-    info "Restart your shell or run: source ~/.zshrc"
+    info "Restart your shell or run: source ${rc_file:-~/.zshrc}"
     printf "\n"
 }
 
