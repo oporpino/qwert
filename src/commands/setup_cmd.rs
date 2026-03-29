@@ -18,6 +18,8 @@ pub fn run(name: &str) -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
     let config_dir = qwert_yml::config_dir();
 
+    crate::commands::recipes_cmd::update_silent();
+
     match index::find(name, &recipes_dir) {
         Some(recipe) => {
             runner::setup_with_output(&recipe, &config_dir);

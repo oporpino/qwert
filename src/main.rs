@@ -7,7 +7,7 @@ mod recipe;
 mod ui;
 
 use clap::Parser;
-use cli::{Cli, Command, ConfigAction, UseTarget};
+use cli::{Cli, Command, ConfigAction, RecipesAction, SelfAction, UseTarget};
 
 fn main() {
     let cli = Cli::parse();
@@ -38,11 +38,12 @@ fn main() {
 
         Command::List => commands::list::run(),
 
-        Command::Upgrade { tool } => commands::upgrade::run(tool.as_deref()),
+        Command::Upgrade { tool, all } => {
+            let target = if all { None } else { tool.as_deref() };
+            commands::upgrade::run(target)
+        }
 
         Command::Reinstall { name } => commands::reinstall::run(&name),
-
-        Command::Update => commands::update::run(),
 
         Command::Version => {
             println!("qwert {}", env!("CARGO_PKG_VERSION"));
@@ -53,6 +54,15 @@ fn main() {
 
         Command::Config { action } => match action {
             ConfigAction::Edit => commands::config::edit(),
+        },
+
+        Command::SelfManage { action } => match action {
+            SelfAction::Upgrade => commands::self_cmd::upgrade(),
+            SelfAction::Reinstall => commands::self_cmd::reinstall(),
+        },
+
+        Command::Recipes { action } => match action {
+            RecipesAction::Update => commands::recipes_cmd::update(),
         },
 
         Command::Help => {

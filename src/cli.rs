@@ -76,6 +76,9 @@ pub enum Command {
     Upgrade {
         /// Upgrade only this tool
         tool: Option<String>,
+        /// Upgrade all declared tools
+        #[arg(long)]
+        all: bool,
     },
 
     /// Reinstall a tool
@@ -83,9 +86,6 @@ pub enum Command {
         /// Tool name
         name: String,
     },
-
-    /// Update qwert itself and refresh recipe index
-    Update,
 
     /// Show qwert version
     Version,
@@ -97,6 +97,19 @@ pub enum Command {
     Config {
         #[command(subcommand)]
         action: ConfigAction,
+    },
+
+    /// Manage qwert itself
+    #[command(name = "self")]
+    SelfManage {
+        #[command(subcommand)]
+        action: SelfAction,
+    },
+
+    /// Manage the recipe index
+    Recipes {
+        #[command(subcommand)]
+        action: RecipesAction,
     },
 }
 
@@ -120,4 +133,18 @@ pub enum UseTarget {
 pub enum ConfigAction {
     /// Open qwert.yml in $EDITOR
     Edit,
+}
+
+#[derive(Subcommand)]
+pub enum SelfAction {
+    /// Upgrade qwert to the latest version
+    Upgrade,
+    /// Reinstall qwert
+    Reinstall,
+}
+
+#[derive(Subcommand)]
+pub enum RecipesAction {
+    /// Fetch the latest recipe index
+    Update,
 }
