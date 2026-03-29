@@ -1,5 +1,4 @@
 use super::for_kind;
-use super::PackageAdapter;
 use crate::recipe::schema::RecipeKind;
 
 #[test]

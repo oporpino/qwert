@@ -414,7 +414,7 @@ pub fn status_with_setup_output(recipe: &Recipe, config_dir: &Path) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::recipe::schema::{RecipeMeta, RecipeKind, RecipeCheck, SetupUndo, Commands};
+    use crate::recipe::schema::{RecipeMeta, RecipeKind, RecipeCheck, Commands};
     use std::fs;
 
     fn make_recipe_with_setup(setup: Option<RecipeSetup>) -> Recipe {
@@ -656,7 +656,7 @@ mod tests {
             dest: "~/.config/iterm2".into(),
             symlink: false,
             macos: Some(Commands::One("defaults write com.foo bar".into())),
-            debian: None,
+            debian: Some(Commands::One("echo debian-setup".into())),
             undo: None,
         };
         let recipe = make_recipe_with_setup(Some(s));
