@@ -24,6 +24,15 @@ pub fn for_kind(kind: &RecipeKind) -> Option<Box<dyn PackageAdapter>> {
     }
 }
 
+/// Returns the default adapter for the current platform (brew on macOS, apt on Debian).
+pub fn default_adapter() -> Option<Box<dyn PackageAdapter>> {
+    match crate::platform::detect() {
+        crate::platform::Platform::MacOS => Some(Box::new(BrewAdapter)),
+        crate::platform::Platform::Debian => Some(Box::new(AptAdapter)),
+        crate::platform::Platform::Unknown => None,
+    }
+}
+
 #[cfg(test)]
 #[path = "tests/mod_tests.rs"]
 mod tests;

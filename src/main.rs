@@ -14,7 +14,7 @@ fn main() {
 
     let result = match cli.command {
         Command::Use { target } => match target {
-            UseTarget::Script { hook, path, .. } => commands::use_cmd::use_script(&hook, &path),
+            UseTarget::Script { hook, path } => commands::use_cmd::use_script(&hook, &path),
             UseTarget::Tool(args) => {
                 let name = args.first().map(|s| s.as_str()).unwrap_or("");
                 let no_install = args.contains(&"--no-install".to_string());
@@ -22,7 +22,13 @@ fn main() {
             }
         },
 
-        Command::Drop { name, uninstall } => commands::drop_cmd::run(&name, uninstall),
+        Command::Install { name } => commands::install_cmd::run(&name),
+
+        Command::Setup { name } => commands::setup_cmd::run(&name),
+
+        Command::Uninstall { name } => commands::uninstall_cmd::run(&name),
+
+        Command::Drop { name } => commands::drop_cmd::run(&name),
 
         Command::Apply { tool, dry_run } => commands::apply::run(tool.as_deref(), dry_run),
 

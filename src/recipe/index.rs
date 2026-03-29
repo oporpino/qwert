@@ -1,17 +1,66 @@
-use anyhow::{Context, Result};
+use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
 
-use super::schema::Recipe;
+use super::schema::{InstallFile, Recipe, RecipeCheck, RecipeMeta, RecipeKind, RecipeSetup, SetupFile};
+use crate::platform;
 
-/// Load a single recipe from a TOML file
-pub fn load_recipe(path: &Path) -> Result<Recipe> {
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("failed to read recipe: {}", path.display()))?;
-    toml::from_str(&content)
-        .with_context(|| format!("failed to parse recipe: {}", path.display()))
+fn load_toml_opt<T: DeserializeOwned>(path: &Path) -> Option<T> {
+    let content = std::fs::read_to_string(path).ok()?;
+    toml::from_str(&content).ok()
 }
 
-/// Load all recipes from a directory
+fn default_kind() -> RecipeKind {
+    match platform::detect() {
+        platform::Platform::MacOS => RecipeKind::Brew,
+        platform::Platform::Debian | platform::Platform::Unknown => RecipeKind::Apt,
+    }
+}
+
+fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<SetupFile>) -> Recipe {
+    let meta = install.as_ref().map(|i| i.meta.clone()).unwrap_or_else(|| RecipeMeta {
+        name: name.to_string(),
+        version: String::new(),
+        description: String::new(),
+        kind: default_kind(),
+        depends: vec![],
+        pkg: None,
+    });
+
+    let check = install.as_ref().and_then(|i| i.check.clone()).or_else(|| {
+        Some(RecipeCheck { command: name.to_string(), version_flag: None })
+    });
+
+    let recipe_setup = setup.map(|s| RecipeSetup {
+        src: s.src,
+        dest: s.dest,
+        symlink: s.symlink,
+        macos: s.macos,
+        debian: s.debian,
+        undo: s.undo,
+    });
+
+    Recipe {
+        meta,
+        check,
+        install: install.as_ref().and_then(|i| i.install.clone()),
+        upgrade: install.as_ref().and_then(|i| i.upgrade.clone()),
+        uninstall: install.as_ref().and_then(|i| i.uninstall.clone()),
+        setup: recipe_setup,
+    }
+}
+
+/// Find a recipe by name — loads from <recipes_dir>/<name>/install.toml and/or setup.toml
+pub fn find(name: &str, recipes_dir: &Path) -> Option<Recipe> {
+    let dir = recipes_dir.join(name);
+    let install: Option<InstallFile> = load_toml_opt(&dir.join("install.toml"));
+    let setup: Option<SetupFile> = load_toml_opt(&dir.join("setup.toml"));
+    if install.is_none() && setup.is_none() {
+        return None;
+    }
+    Some(assemble_recipe(name, install, setup))
+}
+
+/// Load all recipes from subdirectories
 pub fn load_all(recipes_dir: &Path) -> Vec<Recipe> {
     let mut recipes = Vec::new();
 
@@ -21,10 +70,9 @@ pub fn load_all(recipes_dir: &Path) -> Vec<Recipe> {
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) == Some("toml")
-            && path.file_name().and_then(|n| n.to_str()) != Some("stacks")
-        {
-            if let Ok(recipe) = load_recipe(&path) {
+        if path.is_dir() {
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if let Some(recipe) = find(name, recipes_dir) {
                 recipes.push(recipe);
             }
         }
@@ -34,23 +82,18 @@ pub fn load_all(recipes_dir: &Path) -> Vec<Recipe> {
     recipes
 }
 
-/// Find a recipe by name in a directory
-pub fn find(name: &str, recipes_dir: &Path) -> Option<Recipe> {
-    let path = recipes_dir.join(format!("{}.toml", name));
-    load_recipe(&path).ok()
-}
-
 /// Path to the recipes cache directory (~/.qwert/recipes/)
 pub fn cache_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".qwert").join("recipes"))
 }
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
 
-    const MINIMAL_RECIPE: &str = r#"
+    const INSTALL_TOML: &str = r#"
 [meta]
 name = "tmux"
 version = "1.0.0"
@@ -59,52 +102,30 @@ type = "brew"
 
 [check]
 command = "tmux"
-
-[install]
-macos = "brew install tmux"
+version_flag = "-V"
 "#;
 
-    #[test]
-    fn load_recipe_parses_valid_toml() {
-        // arrange
-        let path = std::env::temp_dir().join("test_tmux.toml");
-        fs::write(&path, MINIMAL_RECIPE).unwrap();
-        // act
-        let recipe = load_recipe(&path).unwrap();
-        // assert
-        assert_eq!(recipe.meta.name, "tmux");
-        fs::remove_file(&path).ok();
-        assert_eq!(recipe.meta.version, "1.0.0");
+    const SETUP_TOML: &str = r#"
+dest = "~/.tmux.conf"
+symlink = true
+"#;
+
+    fn make_recipe_dir(dir: &Path, name: &str, install: Option<&str>, setup: Option<&str>) {
+        let recipe_dir = dir.join(name);
+        fs::create_dir_all(&recipe_dir).unwrap();
+        if let Some(content) = install {
+            fs::write(recipe_dir.join("install.toml"), content).unwrap();
+        }
+        if let Some(content) = setup {
+            fs::write(recipe_dir.join("setup.toml"), content).unwrap();
+        }
     }
 
     #[test]
-    fn load_recipe_errors_on_missing_file() {
+    fn find_returns_recipe_from_directory() {
         // arrange
-        let path = std::path::Path::new("/tmp/nonexistent_recipe_xyz.toml");
-        // act
-        let result = load_recipe(path);
-        // assert
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn load_recipe_errors_on_invalid_toml() {
-        // arrange
-        let path = std::env::temp_dir().join("bad_recipe.toml");
-        fs::write(&path, "this is not valid toml [[[").unwrap();
-        // act
-        let result = load_recipe(&path);
-        // assert
-        assert!(result.is_err());
-        fs::remove_file(&path).ok();
-    }
-
-    #[test]
-    fn find_returns_recipe_by_name() {
-        // arrange
-        let dir = std::env::temp_dir().join("qwert_test_recipes");
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(dir.join("tmux.toml"), MINIMAL_RECIPE).unwrap();
+        let dir = std::env::temp_dir().join("qwert_test_find_dir");
+        make_recipe_dir(&dir, "tmux", Some(INSTALL_TOML), None);
         // act
         let result = find("tmux", &dir);
         // assert
@@ -114,9 +135,9 @@ macos = "brew install tmux"
     }
 
     #[test]
-    fn find_returns_none_when_recipe_missing() {
+    fn find_returns_none_when_no_directory() {
         // arrange
-        let dir = std::env::temp_dir().join("qwert_test_empty_recipes");
+        let dir = std::env::temp_dir().join("qwert_test_find_none");
         fs::create_dir_all(&dir).unwrap();
         // act
         let result = find("neovim", &dir);
@@ -126,16 +147,65 @@ macos = "brew install tmux"
     }
 
     #[test]
-    fn load_all_returns_recipes_sorted_by_name() {
+    fn find_assembles_install_and_setup_when_both_present() {
         // arrange
-        let dir = std::env::temp_dir().join("qwert_test_load_all");
-        fs::create_dir_all(&dir).unwrap();
-        let tmux = MINIMAL_RECIPE;
-        let neovim = tmux.replace("name = \"tmux\"", "name = \"neovim\"")
-            .replace("command = \"tmux\"", "command = \"nvim\"")
-            .replace("brew install tmux", "brew install neovim");
-        fs::write(dir.join("tmux.toml"), tmux).unwrap();
-        fs::write(dir.join("neovim.toml"), neovim).unwrap();
+        let dir = std::env::temp_dir().join("qwert_test_find_both");
+        make_recipe_dir(&dir, "tmux", Some(INSTALL_TOML), Some(SETUP_TOML));
+        // act
+        let result = find("tmux", &dir).unwrap();
+        // assert
+        assert!(result.setup.is_some());
+        assert_eq!(result.setup.unwrap().dest, "~/.tmux.conf");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn find_returns_setup_none_when_only_install_toml() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_test_find_install_only");
+        make_recipe_dir(&dir, "tmux", Some(INSTALL_TOML), None);
+        // act
+        let result = find("tmux", &dir).unwrap();
+        // assert
+        assert!(result.setup.is_none());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn find_synthesizes_meta_when_only_setup_toml() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_test_find_setup_only");
+        make_recipe_dir(&dir, "tmux", None, Some(SETUP_TOML));
+        // act
+        let result = find("tmux", &dir).unwrap();
+        // assert
+        assert_eq!(result.meta.name, "tmux");
+        assert!(result.setup.is_some());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn find_synthesizes_check_when_no_install_toml() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_test_find_check_synth");
+        make_recipe_dir(&dir, "git", None, Some(SETUP_TOML));
+        // act
+        let result = find("git", &dir).unwrap();
+        // assert
+        let check = result.check.unwrap();
+        assert_eq!(check.command, "git");
+        assert!(check.version_flag.is_none());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn load_all_returns_recipes_sorted_by_name_from_subdirs() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_test_load_all_dirs");
+        let neovim_install = INSTALL_TOML.replace("name = \"tmux\"", "name = \"neovim\"")
+            .replace("command = \"tmux\"", "command = \"nvim\"");
+        make_recipe_dir(&dir, "tmux", Some(INSTALL_TOML), None);
+        make_recipe_dir(&dir, "neovim", Some(&neovim_install), None);
         // act
         let recipes = load_all(&dir);
         // assert
@@ -148,7 +218,7 @@ macos = "brew install tmux"
     #[test]
     fn load_all_returns_empty_for_missing_dir() {
         // arrange
-        let dir = std::path::Path::new("/tmp/qwert_definitely_missing_dir");
+        let dir = std::path::Path::new("/tmp/qwert_definitely_missing_dir_xyz");
         // act
         let recipes = load_all(dir);
         // assert

@@ -4,33 +4,24 @@ use crate::config::qwert_yml;
 use crate::recipe::{index, runner};
 use crate::ui::printer;
 
-pub fn use_tool(name: &str, no_install: bool) -> Result<()> {
+pub fn run(name: &str) -> Result<()> {
     let manifest_path = qwert_yml::manifest_path();
     let mut config = qwert_yml::QwertConfig::load(&manifest_path)?;
 
-    if config.has_tool(name) {
-        printer::info(&format!("{} is already declared in qwert.yml", name));
-    } else {
+    if !config.has_tool(name) {
         config.add_tool(name);
         config.save(&manifest_path)?;
         printer::ok(name, "added to qwert.yml");
     }
 
-    if no_install {
-        return Ok(());
-    }
-
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
-    let config_dir = qwert_yml::config_dir();
 
     match index::find(name, &recipes_dir) {
         Some(recipe) => {
             runner::install_with_output(&recipe, &recipes_dir);
-            runner::setup_with_output(&recipe, &config_dir);
         }
         None => {
-            // No recipe — install via platform default adapter
             match crate::adapters::default_adapter() {
                 Some(adapter) => {
                     if let Err(e) = crate::platform::run_cmd(&adapter.install_cmd(name)) {
@@ -43,19 +34,6 @@ pub fn use_tool(name: &str, no_install: bool) -> Result<()> {
             }
         }
     }
-
-    Ok(())
-}
-
-pub fn use_script(hook: &str, path: &str) -> Result<()> {
-    let manifest_path = qwert_yml::manifest_path();
-    let mut config = qwert_yml::QwertConfig::load(&manifest_path)?;
-
-    config.add_script(hook, path);
-    config.save(&manifest_path)?;
-
-    printer::ok("script", &format!("added to {} hook in qwert.yml", hook));
-    printer::info("Restart your shell or run `source ~/.zshrc` to apply.");
 
     Ok(())
 }

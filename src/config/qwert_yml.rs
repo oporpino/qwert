@@ -12,9 +12,6 @@ pub struct QwertConfig {
 
     #[serde(default)]
     pub scripts: Scripts,
-
-    #[serde(default)]
-    pub configs: std::collections::HashMap<String, String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

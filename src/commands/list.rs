@@ -15,12 +15,13 @@ pub fn run() -> Result<()> {
 
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
+    let config_dir = qwert_yml::config_dir();
 
     printer::blank();
 
     for name in &config.tools {
         match index::find(name, &recipes_dir) {
-            Some(recipe) => runner::status_with_output(&recipe),
+            Some(recipe) => runner::status_with_setup_output(&recipe, &config_dir),
             None => printer::failed(name, "recipe not found"),
         }
     }

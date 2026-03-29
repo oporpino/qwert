@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+pub mod fs;
 pub mod macos;
 pub mod linux;
 

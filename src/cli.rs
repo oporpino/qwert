@@ -15,22 +15,37 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Declare that this machine uses a tool (adds to qwert.yml and installs)
+    /// Declare a tool, install it, and run setup (full operation)
     Use {
         #[command(subcommand)]
         target: UseTarget,
     },
 
-    /// Remove a tool declaration from this machine
+    /// Declare a tool and install it (skips setup)
+    Install {
+        /// Tool name
+        name: String,
+    },
+
+    /// Run setup for a tool (symlinks, config, commands)
+    Setup {
+        /// Tool name
+        name: String,
+    },
+
+    /// Remove tool declaration and uninstall it (no setup undo)
+    Uninstall {
+        /// Tool name
+        name: String,
+    },
+
+    /// Full teardown: remove declaration, uninstall, and undo setup (with backup)
     Drop {
         /// Tool name
         name: String,
-        /// Also uninstall the tool
-        #[arg(long)]
-        uninstall: bool,
     },
 
-    /// Apply qwert.yml to the machine — install everything declared
+    /// Apply qwert.yml to the machine — install and setup everything declared
     Apply {
         /// Apply only this tool
         tool: Option<String>,
@@ -75,7 +90,7 @@ pub enum Command {
     /// Show qwert version
     Version,
 
-    /// Health check — verify installation, configs, and symlinks
+    /// Health check — verify installation and symlinks
     Doctor,
 
     /// Open qwert.yml in $EDITOR
@@ -98,9 +113,6 @@ pub enum UseTarget {
         /// Path to the script
         #[arg(long)]
         path: String,
-        /// Only add to qwert.yml, don't install
-        #[arg(long)]
-        no_install: bool,
     },
 }
 

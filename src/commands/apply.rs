@@ -13,6 +13,7 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
 
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
+    let config_dir = qwert_yml::config_dir();
 
     printer::h1("Applying machine setup...");
     printer::blank();
@@ -20,7 +21,7 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
     let mut done = 0;
     let mut failed = 0;
 
-    // Uninstall orphans (in state but no longer in manifest)
+    // Uninstall orphans
     if tool.is_none() {
         let orphans: Vec<String> = state.orphans(&config.tools)
             .into_iter()
@@ -42,14 +43,29 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                     }
                 }
                 None => {
-                    printer::failed(name, "recipe not found — remove manually");
-                    failed += 1;
+                    // No recipe — try default adapter
+                    match crate::adapters::default_adapter() {
+                        Some(adapter) => {
+                            if crate::platform::run_cmd(&adapter.uninstall_cmd(name)).is_ok() {
+                                state.mark_removed(name);
+                                printer::ok(name, "uninstalled");
+                                done += 1;
+                            } else {
+                                printer::failed(name, "uninstall failed — remove manually");
+                                failed += 1;
+                            }
+                        }
+                        None => {
+                            printer::failed(name, "no recipe and no package manager — remove manually");
+                            failed += 1;
+                        }
+                    }
                 }
             }
         }
     }
 
-    // Install tools declared in manifest
+    // Install + setup tools declared in manifest
     let tools: Vec<&str> = if let Some(t) = tool {
         vec![t]
     } else {
@@ -64,11 +80,14 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
     for name in &tools {
         if dry_run {
             printer::bullet(&format!("would install: {}", name));
+            printer::bullet(&format!("would setup: {}", name));
             continue;
         }
         match index::find(name, &recipes_dir) {
             Some(recipe) => {
-                if runner::install_with_output(&recipe, &recipes_dir) {
+                let installed = runner::install_with_output(&recipe, &recipes_dir);
+                runner::setup_with_output(&recipe, &config_dir);
+                if installed {
                     state.mark_installed(name);
                     done += 1;
                 } else {
@@ -76,8 +95,22 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                 }
             }
             None => {
-                printer::failed(name, "recipe not found");
-                failed += 1;
+                match crate::adapters::default_adapter() {
+                    Some(adapter) => {
+                        if crate::platform::run_cmd(&adapter.install_cmd(name)).is_ok() {
+                            state.mark_installed(name);
+                            printer::ok(name, "installed");
+                            done += 1;
+                        } else {
+                            printer::failed(name, "install failed");
+                            failed += 1;
+                        }
+                    }
+                    None => {
+                        printer::failed(name, "no recipe and no package manager available");
+                        failed += 1;
+                    }
+                }
             }
         }
     }

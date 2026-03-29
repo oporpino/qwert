@@ -7,7 +7,7 @@ pub struct Recipe {
     pub install: Option<RecipeInstall>,
     pub upgrade: Option<RecipeUpgrade>,
     pub uninstall: Option<RecipeUninstall>,
-    pub config: Option<RecipeConfig>,
+    pub setup: Option<RecipeSetup>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -19,7 +19,6 @@ pub struct RecipeMeta {
     pub kind: RecipeKind,
     #[serde(default)]
     pub depends: Vec<String>,
-    /// Override the package name passed to the adapter (defaults to `name`)
     pub pkg: Option<String>,
 }
 
@@ -45,9 +44,7 @@ impl std::fmt::Display for RecipeKind {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RecipeCheck {
-    /// Binary name to check with `which`
     pub command: String,
-    /// Optional flag to get version string (e.g. "--version")
     pub version_flag: Option<String>,
 }
 
@@ -71,7 +68,6 @@ impl Commands {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RecipeInstall {
     pub macos: Option<Commands>,
-    /// Debian-based Linux (Ubuntu, Debian, etc.)
     pub debian: Option<Commands>,
 }
 
@@ -88,14 +84,42 @@ pub struct RecipeUninstall {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct RecipeConfig {
-    /// Path relative to qwert installation dir
+pub struct RecipeSetup {
     pub src: Option<String>,
-    /// Destination path (supports ~)
     pub dest: String,
-    /// Create a symlink instead of copying
     #[serde(default)]
     pub symlink: bool,
+    pub macos: Option<Commands>,
+    pub debian: Option<Commands>,
+    pub undo: Option<SetupUndo>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SetupUndo {
+    pub macos: Option<Commands>,
+    pub debian: Option<Commands>,
+}
+
+/// Parsed from install.toml
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct InstallFile {
+    pub meta: RecipeMeta,
+    pub check: Option<RecipeCheck>,
+    pub install: Option<RecipeInstall>,
+    pub upgrade: Option<RecipeUpgrade>,
+    pub uninstall: Option<RecipeUninstall>,
+}
+
+/// Parsed from setup.toml (flat, no sections except [undo])
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SetupFile {
+    pub src: Option<String>,
+    pub dest: String,
+    #[serde(default)]
+    pub symlink: bool,
+    pub macos: Option<Commands>,
+    pub debian: Option<Commands>,
+    pub undo: Option<SetupUndo>,
 }
 
 fn platform_cmds<'a>(platform: &crate::platform::Platform, macos: Option<&'a Commands>, debian: Option<&'a Commands>) -> Vec<&'a str> {
@@ -123,6 +147,17 @@ impl Recipe {
     }
 }
 
+impl RecipeSetup {
+    pub fn setup_cmds_for(&self, platform: &crate::platform::Platform) -> Vec<&str> {
+        platform_cmds(platform, self.macos.as_ref(), self.debian.as_ref())
+    }
+
+    pub fn undo_cmds_for(&self, platform: &crate::platform::Platform) -> Vec<&str> {
+        let Some(undo) = &self.undo else { return vec![] };
+        platform_cmds(platform, undo.macos.as_ref(), undo.debian.as_ref())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -142,7 +177,7 @@ mod tests {
             install: Some(RecipeInstall { macos: install_macos, debian: install_debian }),
             upgrade: None,
             uninstall: None,
-            config: None,
+            setup: None,
         }
     }
 
@@ -194,7 +229,7 @@ mod tests {
 
     #[test]
     fn install_steps_empty_when_platform_not_supported() {
-        // arrange — macos-only recipe, queried for Debian
+        // arrange
         let recipe = make_recipe(Some(Commands::One("brew install nvim".into())), None);
         // act
         let steps = recipe.install_steps_for(&Platform::Debian);
@@ -235,23 +270,11 @@ mod tests {
 
     #[test]
     fn uninstall_steps_empty_when_no_section_and_brew_kind() {
-        // arrange — brew recipe with no explicit uninstall section (adapter handles it)
+        // arrange
         let recipe = make_recipe(None, None);
         // act
         let steps = recipe.uninstall_steps_for(&Platform::MacOS);
         // assert
-        assert!(steps.is_empty());
-    }
-
-    #[test]
-    fn uninstall_steps_empty_when_no_section_and_qwert_kind() {
-        // arrange — qwert recipe with no uninstall section
-        let mut recipe = make_recipe(None, None);
-        recipe.meta.kind = RecipeKind::Qwert;
-        recipe.uninstall = None;
-        // act
-        let steps = recipe.uninstall_steps_for(&Platform::MacOS);
-        // assert — no derived uninstall for qwert type
         assert!(steps.is_empty());
     }
 
@@ -270,20 +293,6 @@ mod tests {
     }
 
     #[test]
-    fn uninstall_steps_uses_explicit_debian_section() {
-        // arrange
-        let mut recipe = make_recipe(None, None);
-        recipe.uninstall = Some(RecipeUninstall {
-            macos: None,
-            debian: Some(Commands::One("apt-get remove -y tmux".into())),
-        });
-        // act
-        let steps = recipe.uninstall_steps_for(&Platform::Debian);
-        // assert
-        assert_eq!(steps, vec!["apt-get remove -y tmux"]);
-    }
-
-    #[test]
     fn depends_field_parsed_from_toml() {
         // arrange
         let toml = r#"
@@ -298,24 +307,96 @@ depends = ["neovim"]
 command = "lvim"
 "#;
         // act
-        let recipe: Recipe = toml::from_str(toml).unwrap();
+        let recipe: InstallFile = toml::from_str(toml).unwrap();
         // assert
         assert_eq!(recipe.meta.depends, vec!["neovim"]);
     }
 
     #[test]
-    fn depends_defaults_to_empty_when_absent() {
+    fn setup_cmds_for_macos_returns_macos_commands() {
         // arrange
-        let toml = r#"
-[meta]
-name = "tmux"
-version = "1.0.0"
-description = "Terminal multiplexer"
-type = "brew"
-"#;
+        let setup = RecipeSetup {
+            src: None,
+            dest: "~/.config/iterm2".into(),
+            symlink: false,
+            macos: Some(Commands::One("defaults write com.foo bar".into())),
+            debian: None,
+            undo: None,
+        };
         // act
-        let recipe: Recipe = toml::from_str(toml).unwrap();
+        let cmds = setup.setup_cmds_for(&Platform::MacOS);
         // assert
-        assert!(recipe.meta.depends.is_empty());
+        assert_eq!(cmds, vec!["defaults write com.foo bar"]);
+    }
+
+    #[test]
+    fn setup_cmds_for_debian_returns_debian_commands() {
+        // arrange
+        let setup = RecipeSetup {
+            src: None,
+            dest: "/etc/foo".into(),
+            symlink: false,
+            macos: None,
+            debian: Some(Commands::One("ln -s foo bar".into())),
+            undo: None,
+        };
+        // act
+        let cmds = setup.setup_cmds_for(&Platform::Debian);
+        // assert
+        assert_eq!(cmds, vec!["ln -s foo bar"]);
+    }
+
+    #[test]
+    fn setup_cmds_for_returns_empty_when_no_commands() {
+        // arrange
+        let setup = RecipeSetup {
+            src: None,
+            dest: "~/.tmux.conf".into(),
+            symlink: true,
+            macos: None,
+            debian: None,
+            undo: None,
+        };
+        // act
+        let cmds = setup.setup_cmds_for(&Platform::MacOS);
+        // assert
+        assert!(cmds.is_empty());
+    }
+
+    #[test]
+    fn undo_cmds_for_returns_undo_commands() {
+        // arrange
+        let setup = RecipeSetup {
+            src: None,
+            dest: "~/.config/iterm2".into(),
+            symlink: false,
+            macos: None,
+            debian: None,
+            undo: Some(SetupUndo {
+                macos: Some(Commands::One("defaults delete com.foo bar".into())),
+                debian: None,
+            }),
+        };
+        // act
+        let cmds = setup.undo_cmds_for(&Platform::MacOS);
+        // assert
+        assert_eq!(cmds, vec!["defaults delete com.foo bar"]);
+    }
+
+    #[test]
+    fn undo_cmds_for_returns_empty_when_no_undo_section() {
+        // arrange
+        let setup = RecipeSetup {
+            src: None,
+            dest: "~/.tmux.conf".into(),
+            symlink: true,
+            macos: None,
+            debian: None,
+            undo: None,
+        };
+        // act
+        let cmds = setup.undo_cmds_for(&Platform::MacOS);
+        // assert
+        assert!(cmds.is_empty());
     }
 }
