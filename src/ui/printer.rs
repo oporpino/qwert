@@ -131,17 +131,18 @@ pub fn kind_tag_col(kind: &str) -> String {
 
 // --- Search result ---
 
-/// "  neovim    [brew]    Neovim text editor    v0.10.2"
+/// "  neovim              [brew]   Neovim text editor    v0.10.2"
 pub fn search_result(name: &str, kind: &str, description: &str, version: Option<&str>) {
-    let name_col = colorize(BOLD_WHITE, &format!("{:<12}", name));
-    let kind_col = match kind {
-        "brew" => colorize(BRIGHT_BLUE, &format!("[{:<5}]", kind)),
-        _ => colorize(BRIGHT_YELLOW, &format!("[{:<5}]", kind)),
-    };
+    let name_col = colorize(BOLD_WHITE, &format!("{:<20}", name));
+    let kind_col = kind_tag_col(kind);
     let ver = version
         .map(|v| colorize(DIM, &format!("  {}", v)))
         .unwrap_or_default();
-    println!("  {}  {}  {}{}", name_col, kind_col, description, ver);
+    if description.is_empty() {
+        println!("  {}  {}{}", name_col, kind_col, ver);
+    } else {
+        println!("  {}  {}  {}{}", name_col, kind_col, description, ver);
+    }
 }
 
 // --- Field line ---
