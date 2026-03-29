@@ -59,13 +59,13 @@ detect_target() {
 # ---------------------------------------------------------------------------
 
 ask_config_dir() {
-    local default="${HOME}/.config/qwert"
-    local default_display="~/.config/qwert"
+    local default="${HOME}/.config"
+    local default_display="~/.config"
     local input
 
     printf "\n"
     printf "  \033[1mConfig directory\033[0m\n"
-    dim "This is where qwert.yml and your dotfiles live."
+    dim "This is where qwert.yml will be created (e.g. ~/.config/qwert.yml)."
     dim "Save this folder in a personal git repo to replicate your environment on any machine."
     printf "\n"
     printf "  Location [%s]: " "${default_display}"
@@ -196,7 +196,7 @@ configure_shell() {
     fi
 
     # QWERT_CONFIG_DIR (only write if non-default)
-    local default_config="${HOME}/.config/qwert"
+    local default_config="${HOME}/.config"
     if [ "${QWERT_CONFIG_DIR}" != "${default_config}" ]; then
         if grep -qF 'QWERT_CONFIG_DIR' "${rc_file}"; then
             ok "QWERT_CONFIG_DIR already set in ${rc_file}"

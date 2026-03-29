@@ -87,9 +87,9 @@ pub fn config_dir() -> PathBuf {
                 }
             }
         }
-        return home.join(".config").join("qwert");
+        return home.join(".config");
     }
-    PathBuf::from("~/.config/qwert")
+    PathBuf::from("~/.config")
 }
 
 /// Path to the qwert.yml manifest
