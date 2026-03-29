@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::config::qwert_yml;
-use crate::recipe::index;
+use crate::recipe::{index, runner};
 use crate::ui::printer;
 
 pub fn run(name: &str, uninstall: bool) -> Result<()> {
@@ -22,17 +22,8 @@ pub fn run(name: &str, uninstall: bool) -> Result<()> {
             .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
 
         match index::find(name, &recipes_dir) {
-            Some(_recipe) => {
-                // Uninstall logic will be implemented per-recipe
-                // For now, inform the user
-                printer::info(&format!(
-                    "To uninstall manually: brew uninstall {}",
-                    name
-                ));
-            }
-            None => {
-                printer::warning(&format!("recipe '{}' not found — uninstall manually", name));
-            }
+            Some(recipe) => { runner::uninstall_with_output(&recipe); }
+            None => printer::warning(&format!("recipe '{}' not found — uninstall manually", name)),
         }
     }
 
