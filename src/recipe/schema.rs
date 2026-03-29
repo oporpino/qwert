@@ -19,12 +19,16 @@ pub struct RecipeMeta {
     pub kind: RecipeKind,
     #[serde(default)]
     pub depends: Vec<String>,
+    /// Override the package name passed to the adapter (defaults to `name`)
+    pub pkg: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum RecipeKind {
     Brew,
+    Apt,
+    Pacman,
     Qwert,
 }
 
@@ -32,6 +36,8 @@ impl std::fmt::Display for RecipeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RecipeKind::Brew => write!(f, "brew"),
+            RecipeKind::Apt => write!(f, "apt"),
+            RecipeKind::Pacman => write!(f, "pacman"),
             RecipeKind::Qwert => write!(f, "qwert"),
         }
     }
@@ -141,6 +147,7 @@ mod tests {
                 description: "test recipe".into(),
                 kind: RecipeKind::Brew,
                 depends: vec![],
+                pkg: None,
             },
             check: None,
             install: Some(RecipeInstall { macos: install_macos, debian: install_debian }),

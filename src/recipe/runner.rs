@@ -25,6 +25,20 @@ pub fn installed_version(recipe: &Recipe) -> Option<String> {
     platform::version_of(&check.command, flag)
 }
 
+/// Package name to pass to the adapter: uses `meta.pkg` override if set, else `meta.name`.
+fn pkg_name(recipe: &Recipe) -> &str {
+    recipe.meta.pkg.as_deref().unwrap_or(&recipe.meta.name)
+}
+
+/// Execute a single command via the platform ops, returning RunResult on failure.
+fn run_cmd(cmd: &str) -> Result<(), String> {
+    platform::current().install(cmd).map_err(|e| e.to_string())
+}
+
+fn run_upgrade_cmd(cmd: &str) -> Result<(), String> {
+    platform::current().upgrade(cmd).map_err(|e| e.to_string())
+}
+
 /// Install a recipe on the current platform, resolving dependencies first.
 pub fn install(recipe: &Recipe, recipes_dir: &std::path::Path) -> RunResult {
     let platform = platform::detect();
@@ -50,15 +64,26 @@ pub fn install(recipe: &Recipe, recipes_dir: &std::path::Path) -> RunResult {
         }
     }
 
+    // Try adapter first
+    if let Some(adapter) = crate::adapters::for_kind(&recipe.meta.kind) {
+        if adapter.available() {
+            let cmd = adapter.install_cmd(pkg_name(recipe));
+            return match run_cmd(&cmd) {
+                Ok(_) => RunResult::Installed,
+                Err(e) => RunResult::Failed(e),
+            };
+        }
+    }
+
+    // Fall back to explicit commands
     let steps = recipe.install_steps_for(&platform);
     if steps.is_empty() {
         return RunResult::NotSupported;
     }
 
-    let ops = platform::current();
     for step in steps {
-        if let Err(e) = ops.install(step) {
-            return RunResult::Failed(e.to_string());
+        if let Err(e) = run_cmd(step) {
+            return RunResult::Failed(e);
         }
     }
     RunResult::Installed
@@ -68,28 +93,26 @@ pub fn install(recipe: &Recipe, recipes_dir: &std::path::Path) -> RunResult {
 pub fn uninstall(recipe: &Recipe) -> RunResult {
     let platform = platform::detect();
 
+    // Try adapter first
+    if let Some(adapter) = crate::adapters::for_kind(&recipe.meta.kind) {
+        if adapter.available() {
+            let cmd = adapter.uninstall_cmd(pkg_name(recipe));
+            return match run_cmd(&cmd) {
+                Ok(_) => RunResult::Installed,
+                Err(e) => RunResult::Failed(e),
+            };
+        }
+    }
+
+    // Fall back to explicit commands
     let steps = recipe.uninstall_steps_for(&platform);
-
-    // Brew recipes: derive uninstall command from name if no explicit section
-    let derived;
-    let steps = if steps.is_empty() && recipe.meta.kind == super::schema::RecipeKind::Brew {
-        derived = match platform {
-            crate::platform::Platform::MacOS => format!("brew uninstall {}", recipe.meta.name),
-            crate::platform::Platform::Debian | crate::platform::Platform::Unknown => {
-                format!("sudo apt-get remove -y {}", recipe.meta.name)
-            }
-        };
-        vec![derived.as_str()]
-    } else if steps.is_empty() {
+    if steps.is_empty() {
         return RunResult::NotSupported;
-    } else {
-        steps
-    };
+    }
 
-    let ops = platform::current();
     for step in steps {
-        if let Err(e) = ops.install(step) {
-            return RunResult::Failed(e.to_string());
+        if let Err(e) = run_cmd(step) {
+            return RunResult::Failed(e);
         }
     }
     RunResult::Installed
@@ -111,15 +134,26 @@ pub fn uninstall_with_output(recipe: &Recipe) -> bool {
 pub fn upgrade(recipe: &Recipe) -> RunResult {
     let platform = platform::detect();
 
+    // Try adapter first
+    if let Some(adapter) = crate::adapters::for_kind(&recipe.meta.kind) {
+        if adapter.available() {
+            let cmd = adapter.upgrade_cmd(pkg_name(recipe));
+            return match run_upgrade_cmd(&cmd) {
+                Ok(_) => RunResult::Installed,
+                Err(e) => RunResult::Failed(e),
+            };
+        }
+    }
+
+    // Fall back to explicit commands
     let steps = recipe.upgrade_steps_for(&platform);
     if steps.is_empty() {
         return RunResult::NotSupported;
     }
 
-    let ops = platform::current();
     for step in steps {
-        if let Err(e) = ops.upgrade(step) {
-            return RunResult::Failed(e.to_string());
+        if let Err(e) = run_upgrade_cmd(step) {
+            return RunResult::Failed(e);
         }
     }
     RunResult::Installed
