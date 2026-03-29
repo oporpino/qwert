@@ -43,6 +43,16 @@ QWERT uses a two-tier config system:
 
 This allows users to customize their environment by modifying files in `~/.config/qwert/` and backing them up separately.
 
+### QWERT_CONFIG_DIR — The Developer's Personal Dotfiles
+
+`~/.config/qwert/` (or any custom path set via `QWERT_CONFIG_DIR`) is the **developer's personal dotfiles directory for qwert**. Its purpose is to allow the developer to save all their configs and setup preferences in a personal repository, so that on a new machine they can simply clone that repo and run `qwert setup` to replicate their entire environment automatically.
+
+Key points:
+- The directory structure inside `QWERT_CONFIG_DIR` is **free-form** — the developer organizes it however they want
+- The `setup.yml` file inside this dir is the manifest: it declares which tools to install and where configs live
+- `~/.qwert/` is the qwert installation itself (binary, recipe cache, state) — **never edited by the user**
+- `QWERT_CONFIG_DIR` is configurable at install time (default: `~/.config/qwert/`), so users can point it to `~/dotfiles/`, `~/my-env/`, etc.
+
 ### Environment Variables
 
 - `QWERT_DIR`: Set to `$HOME/.qwert`, used throughout scripts to reference the installation directory
