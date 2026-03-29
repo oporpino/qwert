@@ -186,14 +186,16 @@ configure_shell() {
         return
     fi
 
-    # PATH
-    if grep -qF '.qwert/bin' "${rc_file}"; then
-        ok "PATH already configured in ${rc_file}"
-    else
-        printf '\n# qwert\n' >> "${rc_file}"
-        printf 'export PATH="${HOME}/.qwert/bin:${PATH}"\n' >> "${rc_file}"
-        ok "PATH configured in ${rc_file}"
+    if grep -qF 'qwert hook init' "${rc_file}"; then
+        ok "Shell hooks already configured in ${rc_file}"
+        return
     fi
+
+    printf '\n# qwert\n' >> "${rc_file}"
+    printf 'export PATH="${HOME}/.qwert/bin:${PATH}"\n' >> "${rc_file}"
+    printf 'eval "$(qwert hook init)"\n' >> "${rc_file}"
+    printf 'eval "$(qwert hook end)"\n' >> "${rc_file}"
+    ok "Shell hooks configured in ${rc_file}"
 
     # QWERT_CONFIG_DIR (only write if non-default)
     local default_config="${HOME}/.config"
