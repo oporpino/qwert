@@ -50,6 +50,8 @@ fn main() {
             Ok(())
         }
 
+        Command::Info { name } => commands::info::run(&name),
+
         Command::Doctor => commands::doctor::run(),
 
         Command::Config { action } => match action {

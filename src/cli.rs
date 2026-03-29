@@ -66,6 +66,12 @@ pub enum Command {
         name: String,
     },
 
+    /// Show full details for a tool (recipe, install status, setup)
+    Info {
+        /// Tool name
+        name: String,
+    },
+
     /// Show help
     Help,
 

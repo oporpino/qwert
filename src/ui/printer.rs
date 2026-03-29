@@ -136,6 +136,13 @@ pub fn search_result(name: &str, kind: &str, description: &str, version: Option<
     println!("  {}  {}  {}{}", name_col, kind_col, description, ver);
 }
 
+// --- Field line ---
+
+/// "  label          value"
+pub fn field(label: &str, value: &str) {
+    println!("  {}  {}", colorize(DIM, &format!("{:<14}", label)), value);
+}
+
 // --- Blank line ---
 pub fn blank() {
     println!();

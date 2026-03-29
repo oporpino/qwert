@@ -354,7 +354,7 @@ pub fn undo_setup_with_output(recipe: &Recipe, config_dir: &Path) -> bool {
 }
 
 /// Returns a static label for setup status
-fn setup_status_label(setup: &RecipeSetup, config_dir: &Path, recipe_name: &str) -> &'static str {
+pub fn setup_status_label(setup: &RecipeSetup, config_dir: &Path, recipe_name: &str) -> &'static str {
     let platform = platform::detect();
     let dest = PathBuf::from(qwert_yml::expand_tilde(&setup.dest));
 
