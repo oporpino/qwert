@@ -16,3 +16,4 @@ serde_yml = "0.0.12"
 toml = "0.8"
 anyhow = "1"
 dirs = "5"
+indexmap = { version = "2", features = ["serde"] }

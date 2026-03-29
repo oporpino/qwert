@@ -19,10 +19,10 @@ pub fn run() -> Result<()> {
 
     printer::blank();
 
-    for name in &config.tools {
-        match index::find(name, &recipes_dir) {
+    for name in config.tool_names() {
+        match index::find(&name, &recipes_dir) {
             Some(recipe) => runner::status_with_setup_output(&recipe, &config_dir),
-            None => printer::failed(name, "recipe not found"),
+            None => printer::failed(&name, "recipe not found"),
         }
     }
 

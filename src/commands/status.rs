@@ -11,10 +11,11 @@ pub fn run(tool: Option<&str>) -> Result<()> {
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
 
+    let tool_names = config.tool_names();
     let tools: Vec<&str> = if let Some(t) = tool {
         vec![t]
     } else {
-        config.tools.iter().map(|s| s.as_str()).collect()
+        tool_names.iter().map(|s| s.as_str()).collect()
     };
 
     if tools.is_empty() {

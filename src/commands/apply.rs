@@ -23,7 +23,7 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
 
     // Uninstall orphans
     if tool.is_none() {
-        let orphans: Vec<String> = state.orphans(&config.tools)
+        let orphans: Vec<String> = state.orphans(&config.tool_names())
             .into_iter()
             .map(|s| s.to_string())
             .collect();
@@ -66,13 +66,14 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
     }
 
     // Install + setup tools declared in manifest
+    let tool_names = config.tool_names();
     let tools: Vec<&str> = if let Some(t) = tool {
         vec![t]
     } else {
-        config.tools.iter().map(|s| s.as_str()).collect()
+        tool_names.iter().map(|s| s.as_str()).collect()
     };
 
-    if tools.is_empty() && state.orphans(&config.tools).is_empty() {
+    if tools.is_empty() && state.orphans(&config.tool_names()).is_empty() {
         printer::info("No tools declared. Run `qwert use <tool>` to add one.");
         return Ok(());
     }
@@ -88,7 +89,8 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                 let installed = runner::install_with_output(&recipe, &recipes_dir);
                 runner::setup_with_output(&recipe, &config_dir);
                 if installed {
-                    state.mark_installed(name);
+                    let version = runner::installed_version(&recipe);
+                    state.mark_installed(name, version.as_deref());
                     done += 1;
                 } else {
                     failed += 1;
@@ -96,14 +98,16 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
             }
             None => {
                 if crate::platform::which(name) {
-                    state.mark_installed(name);
+                    let version = crate::platform::version_of(name, "--version");
+                    state.mark_installed(name, version.as_deref());
                     printer::ok(name, "already installed");
                     done += 1;
                 } else {
                     match crate::adapters::default_adapter() {
                         Some(adapter) => {
                             if crate::platform::run_cmd(&adapter.install_cmd(name)).is_ok() {
-                                state.mark_installed(name);
+                                let version = crate::platform::version_of(name, "--version");
+                                state.mark_installed(name, version.as_deref());
                                 printer::ok(name, "installed");
                                 done += 1;
                             } else {

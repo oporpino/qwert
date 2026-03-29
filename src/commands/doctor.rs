@@ -47,10 +47,10 @@ pub fn run() -> Result<()> {
     if !config.tools.is_empty() {
         printer::blank();
         printer::h2("Declared tools");
-        for name in &config.tools {
-            match index::find(name, &recipes_dir) {
+        for name in config.tool_names() {
+            match index::find(&name, &recipes_dir) {
                 Some(recipe) => runner::status_with_output(&recipe),
-                None => printer::failed(name, "recipe not found"),
+                None => printer::failed(&name, "recipe not found"),
             }
         }
     }

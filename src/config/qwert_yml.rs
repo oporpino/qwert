@@ -1,11 +1,13 @@
 use anyhow::{Context, Result};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct QwertConfig {
+    /// name → version spec ("latest" or a pinned semver)
     #[serde(default)]
-    pub tools: Vec<String>,
+    pub tools: IndexMap<String, String>,
 
     #[serde(default)]
     pub stacks: Vec<String>,
@@ -44,17 +46,20 @@ impl QwertConfig {
     }
 
     pub fn add_tool(&mut self, name: &str) {
-        if !self.tools.iter().any(|t| t == name) {
-            self.tools.push(name.to_string());
-        }
+        self.tools.entry(name.to_string()).or_insert_with(|| "latest".to_string());
     }
 
     pub fn remove_tool(&mut self, name: &str) {
-        self.tools.retain(|t| t != name);
+        self.tools.shift_remove(name);
     }
 
     pub fn has_tool(&self, name: &str) -> bool {
-        self.tools.iter().any(|t| t == name)
+        self.tools.contains_key(name)
+    }
+
+    /// Ordered list of declared tool names.
+    pub fn tool_names(&self) -> Vec<String> {
+        self.tools.keys().cloned().collect()
     }
 
     pub fn add_hook(&mut self, hook: &str, path: &str) {
@@ -111,13 +116,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn add_tool_appends_new_tool() {
+    fn add_tool_appends_new_tool_with_latest() {
         // arrange
         let mut config = QwertConfig::default();
         // act
         config.add_tool("neovim");
         // assert
-        assert_eq!(config.tools, vec!["neovim"]);
+        assert_eq!(config.tools.get("neovim").map(|s| s.as_str()), Some("latest"));
     }
 
     #[test]
@@ -140,7 +145,7 @@ mod tests {
         // act
         config.remove_tool("neovim");
         // assert
-        assert_eq!(config.tools, vec!["tmux"]);
+        assert_eq!(config.tool_names(), vec!["tmux"]);
     }
 
     #[test]
@@ -151,7 +156,7 @@ mod tests {
         // act
         config.remove_tool("neovim");
         // assert
-        assert_eq!(config.tools, vec!["tmux"]);
+        assert_eq!(config.tool_names(), vec!["tmux"]);
     }
 
     #[test]
@@ -230,7 +235,8 @@ mod tests {
         let loaded = QwertConfig::load(&path).unwrap();
         std::fs::remove_file(&path).ok();
         // assert
-        assert_eq!(loaded.tools, vec!["tmux", "neovim"]);
+        assert_eq!(loaded.tool_names(), vec!["tmux", "neovim"]);
+        assert_eq!(loaded.tools.get("tmux").map(|s| s.as_str()), Some("latest"));
         assert_eq!(loaded.hooks.init, vec!["~/env.sh"]);
     }
 
