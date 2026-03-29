@@ -203,19 +203,20 @@ configure_shell() {
         printf 'export QWERT_CONFIG_DIR="%s"\n' "${QWERT_CONFIG_DIR}" >> "${init_tmp}"
     fi
 
-    local shell_name
-    shell_name="$(basename "${SHELL:-bash}")"
-    printf 'source <(qwert completions %s)\n' "${shell_name}" >> "${init_tmp}"
     printf 'eval "$(qwert hook init)"\n' >> "${init_tmp}"
     printf '\n' >> "${init_tmp}"
 
-    # Prepend init block, append end hook
+    # Prepend init block
     cat "${init_tmp}" "${rc_file}" > "${rc_file}.tmp" && mv "${rc_file}.tmp" "${rc_file}"
     rm "${init_tmp}"
     ok "init hook added to top of ${rc_file}"
 
-    printf '\neval "$(qwert hook end)"\n' >> "${rc_file}"
-    ok "end hook added to bottom of ${rc_file}"
+    # Completions and end hook go at the bottom (after compinit)
+    local shell_name
+    shell_name="$(basename "${SHELL:-bash}")"
+    printf '\nsource <(qwert completions %s)\n' "${shell_name}" >> "${rc_file}"
+    printf 'eval "$(qwert hook end)"\n' >> "${rc_file}"
+    ok "completions and end hook added to bottom of ${rc_file}"
 }
 
 # ---------------------------------------------------------------------------
