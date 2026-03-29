@@ -186,10 +186,9 @@ configure_shell() {
         return
     fi
 
-    if grep -qF 'qwert hook init' "${rc_file}"; then
-        ok "Shell hooks already configured in ${rc_file}"
-        return
-    fi
+    # Remove any existing qwert lines before reinstalling
+    grep -vE '(# qwert|\.qwert/bin|qwert hook|qwert completions|QWERT_CONFIG_DIR)' \
+        "${rc_file}" > "${rc_file}.tmp" && mv "${rc_file}.tmp" "${rc_file}"
 
     # Build the init block (PATH + hook init) to prepend
     local init_block
