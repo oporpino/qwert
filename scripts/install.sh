@@ -187,32 +187,33 @@ configure_shell() {
     fi
 
     # Remove any existing qwert lines before reinstalling
-    grep -vE '(# qwert|\.qwert/bin|qwert hook|qwert completions|QWERT_CONFIG_DIR)' \
+    grep -vE '(# qwert|\.qwert/bin|qwert hook|qwert completions|source <\(qwert|QWERT_CONFIG_DIR)' \
         "${rc_file}" > "${rc_file}.tmp" && mv "${rc_file}.tmp" "${rc_file}"
 
-    # Build the init block (PATH + hook init) to prepend
-    local init_block
-    init_block="$(printf '# qwert\nexport PATH="${HOME}/.qwert/bin:${PATH}"\n')"
+    # Build init block into a temp file (avoids $() stripping newlines)
+    local init_tmp
+    init_tmp="$(mktemp)"
+
+    printf '# qwert\n' >> "${init_tmp}"
+    printf 'export PATH="${HOME}/.qwert/bin:${PATH}"\n' >> "${init_tmp}"
 
     # QWERT_CONFIG_DIR (only if non-default)
     local default_config="${HOME}/.config"
     if [ "${QWERT_CONFIG_DIR}" != "${default_config}" ]; then
-        init_block="${init_block}$(printf 'export QWERT_CONFIG_DIR="%s"\n' "${QWERT_CONFIG_DIR}")"
+        printf 'export QWERT_CONFIG_DIR="%s"\n' "${QWERT_CONFIG_DIR}" >> "${init_tmp}"
     fi
 
-    # Completions
     local shell_name
     shell_name="$(basename "${SHELL:-bash}")"
-    init_block="${init_block}$(printf 'eval "$(qwert completions %s)"\n' "${shell_name}")"
+    printf 'source <(qwert completions %s)\n' "${shell_name}" >> "${init_tmp}"
+    printf 'eval "$(qwert hook init)"\n' >> "${init_tmp}"
+    printf '\n' >> "${init_tmp}"
 
-    init_block="${init_block}$(printf 'eval "$(qwert hook init)"\n')"
-
-    # Prepend init block to rc file
-    printf '%s\n' "${init_block}" | cat - "${rc_file}" > "${rc_file}.tmp" \
-        && mv "${rc_file}.tmp" "${rc_file}"
+    # Prepend init block, append end hook
+    cat "${init_tmp}" "${rc_file}" > "${rc_file}.tmp" && mv "${rc_file}.tmp" "${rc_file}"
+    rm "${init_tmp}"
     ok "init hook added to top of ${rc_file}"
 
-    # Append end hook
     printf '\neval "$(qwert hook end)"\n' >> "${rc_file}"
     ok "end hook added to bottom of ${rc_file}"
 }
