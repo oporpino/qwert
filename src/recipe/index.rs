@@ -45,7 +45,113 @@ pub fn cache_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".qwert").join("recipes"))
 }
 
-/// Path to the bundled recipes (relative to the installed qwert dir)
-pub fn bundled_dir() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".qwert").join("recipes"))
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    const MINIMAL_RECIPE: &str = r#"
+[meta]
+name = "tmux"
+version = "1.0.0"
+description = "Terminal multiplexer"
+type = "brew"
+
+[check]
+command = "tmux"
+
+[install]
+macos = "brew install tmux"
+"#;
+
+    #[test]
+    fn load_recipe_parses_valid_toml() {
+        // arrange
+        let path = std::env::temp_dir().join("test_tmux.toml");
+        fs::write(&path, MINIMAL_RECIPE).unwrap();
+        // act
+        let recipe = load_recipe(&path).unwrap();
+        fs::remove_file(&path).ok();
+        // assert
+        assert_eq!(recipe.meta.name, "tmux");
+        assert_eq!(recipe.meta.version, "1.0.0");
+    }
+
+    #[test]
+    fn load_recipe_errors_on_missing_file() {
+        // arrange
+        let path = std::path::Path::new("/tmp/nonexistent_recipe_xyz.toml");
+        // act
+        let result = load_recipe(path);
+        // assert
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn load_recipe_errors_on_invalid_toml() {
+        // arrange
+        let path = std::env::temp_dir().join("bad_recipe.toml");
+        fs::write(&path, "this is not valid toml [[[").unwrap();
+        // act
+        let result = load_recipe(&path);
+        fs::remove_file(&path).ok();
+        // assert
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn find_returns_recipe_by_name() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_test_recipes");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("tmux.toml"), MINIMAL_RECIPE).unwrap();
+        // act
+        let result = find("tmux", &dir);
+        fs::remove_dir_all(&dir).ok();
+        // assert
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().meta.name, "tmux");
+    }
+
+    #[test]
+    fn find_returns_none_when_recipe_missing() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_test_empty_recipes");
+        fs::create_dir_all(&dir).unwrap();
+        // act
+        let result = find("neovim", &dir);
+        fs::remove_dir_all(&dir).ok();
+        // assert
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn load_all_returns_recipes_sorted_by_name() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_test_load_all");
+        fs::create_dir_all(&dir).unwrap();
+        let tmux = MINIMAL_RECIPE;
+        let neovim = tmux.replace("name = \"tmux\"", "name = \"neovim\"")
+            .replace("command = \"tmux\"", "command = \"nvim\"")
+            .replace("brew install tmux", "brew install neovim");
+        fs::write(dir.join("tmux.toml"), tmux).unwrap();
+        fs::write(dir.join("neovim.toml"), neovim).unwrap();
+        // act
+        let recipes = load_all(&dir);
+        fs::remove_dir_all(&dir).ok();
+        // assert
+        assert_eq!(recipes.len(), 2);
+        assert_eq!(recipes[0].meta.name, "neovim");
+        assert_eq!(recipes[1].meta.name, "tmux");
+    }
+
+    #[test]
+    fn load_all_returns_empty_for_missing_dir() {
+        // arrange
+        let dir = std::path::Path::new("/tmp/qwert_definitely_missing_dir");
+        // act
+        let recipes = load_all(dir);
+        // assert
+        assert!(recipes.is_empty());
+    }
 }

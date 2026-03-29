@@ -33,7 +33,7 @@ impl QwertConfig {
         }
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
-        serde_yaml::from_str(&content)
+        serde_yml::from_str(&content)
             .with_context(|| format!("failed to parse {}", path.display()))
     }
 
@@ -41,7 +41,7 @@ impl QwertConfig {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let content = serde_yaml::to_string(self)?;
+        let content = serde_yml::to_string(self)?;
         std::fs::write(path, content)?;
         Ok(())
     }
@@ -100,11 +100,176 @@ pub fn manifest_path() -> PathBuf {
     config_dir().join("qwert.yml")
 }
 
-fn expand_tilde(path: &str) -> String {
+pub(crate) fn expand_tilde(path: &str) -> String {
     if path.starts_with("~/") {
         if let Some(home) = dirs::home_dir() {
             return format!("{}/{}", home.display(), &path[2..]);
         }
     }
     path.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_tool_appends_new_tool() {
+        // arrange
+        let mut config = QwertConfig::default();
+        // act
+        config.add_tool("neovim");
+        // assert
+        assert_eq!(config.tools, vec!["neovim"]);
+    }
+
+    #[test]
+    fn add_tool_ignores_duplicate() {
+        // arrange
+        let mut config = QwertConfig::default();
+        config.add_tool("neovim");
+        // act
+        config.add_tool("neovim");
+        // assert
+        assert_eq!(config.tools.len(), 1);
+    }
+
+    #[test]
+    fn remove_tool_deletes_existing_tool() {
+        // arrange
+        let mut config = QwertConfig::default();
+        config.add_tool("neovim");
+        config.add_tool("tmux");
+        // act
+        config.remove_tool("neovim");
+        // assert
+        assert_eq!(config.tools, vec!["tmux"]);
+    }
+
+    #[test]
+    fn remove_tool_is_noop_when_absent() {
+        // arrange
+        let mut config = QwertConfig::default();
+        config.add_tool("tmux");
+        // act
+        config.remove_tool("neovim");
+        // assert
+        assert_eq!(config.tools, vec!["tmux"]);
+    }
+
+    #[test]
+    fn has_tool_returns_true_when_present() {
+        // arrange
+        let mut config = QwertConfig::default();
+        config.add_tool("tmux");
+        // act / assert
+        assert!(config.has_tool("tmux"));
+    }
+
+    #[test]
+    fn has_tool_returns_false_when_absent() {
+        // arrange
+        let config = QwertConfig::default();
+        // act / assert
+        assert!(!config.has_tool("tmux"));
+    }
+
+    #[test]
+    fn add_script_appends_to_init_hook() {
+        // arrange
+        let mut config = QwertConfig::default();
+        // act
+        config.add_script("init", "~/dotfiles/env.sh");
+        // assert
+        assert_eq!(config.scripts.init, vec!["~/dotfiles/env.sh"]);
+    }
+
+    #[test]
+    fn add_script_appends_to_end_hook() {
+        // arrange
+        let mut config = QwertConfig::default();
+        // act
+        config.add_script("end", "~/dotfiles/aliases.sh");
+        // assert
+        assert_eq!(config.scripts.end, vec!["~/dotfiles/aliases.sh"]);
+    }
+
+    #[test]
+    fn add_script_ignores_duplicate_path() {
+        // arrange
+        let mut config = QwertConfig::default();
+        config.add_script("init", "~/env.sh");
+        // act
+        config.add_script("init", "~/env.sh");
+        // assert
+        assert_eq!(config.scripts.init.len(), 1);
+    }
+
+    #[test]
+    fn add_script_ignores_unknown_hook() {
+        // arrange
+        let mut config = QwertConfig::default();
+        // act
+        config.add_script("unknown", "~/script.sh");
+        // assert — no panic, no side effects
+        assert!(config.scripts.init.is_empty());
+        assert!(config.scripts.end.is_empty());
+    }
+
+    #[test]
+    fn save_and_load_roundtrip() {
+        // arrange
+        let mut config = QwertConfig::default();
+        config.add_tool("tmux");
+        config.add_tool("neovim");
+        config.add_script("init", "~/env.sh");
+        let path = std::env::temp_dir().join("qwert_test_roundtrip.yml");
+        // act
+        config.save(&path).unwrap();
+        let loaded = QwertConfig::load(&path).unwrap();
+        std::fs::remove_file(&path).ok();
+        // assert
+        assert_eq!(loaded.tools, vec!["tmux", "neovim"]);
+        assert_eq!(loaded.scripts.init, vec!["~/env.sh"]);
+    }
+
+    #[test]
+    fn load_returns_default_when_file_missing() {
+        // arrange
+        let path = std::env::temp_dir().join("qwert_nonexistent_xyz.yml");
+        // act
+        let config = QwertConfig::load(&path).unwrap();
+        // assert
+        assert!(config.tools.is_empty());
+    }
+
+    #[test]
+    fn config_dir_uses_env_var_when_set() {
+        // arrange
+        std::env::set_var("QWERT_CONFIG_DIR", "/tmp/my-dotfiles");
+        // act
+        let dir = config_dir();
+        std::env::remove_var("QWERT_CONFIG_DIR");
+        // assert
+        assert_eq!(dir, std::path::PathBuf::from("/tmp/my-dotfiles"));
+    }
+
+    #[test]
+    fn expand_tilde_replaces_prefix() {
+        // arrange
+        let home = dirs::home_dir().unwrap();
+        // act
+        let result = expand_tilde("~/dotfiles/env.sh");
+        // assert
+        assert!(result.starts_with(home.to_str().unwrap()));
+        assert!(result.ends_with("dotfiles/env.sh"));
+    }
+
+    #[test]
+    fn expand_tilde_leaves_absolute_path_unchanged() {
+        // arrange / act
+        let result = expand_tilde("/etc/profile");
+        // assert
+        assert_eq!(result, "/etc/profile");
+    }
 }
