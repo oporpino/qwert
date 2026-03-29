@@ -20,9 +20,16 @@ pub fn run() -> Result<()> {
     printer::blank();
 
     for name in config.tool_names() {
+        let declared = config.version_of(&name);
         match index::find(&name, &recipes_dir) {
-            Some(recipe) => runner::status_with_setup_output(&recipe, &config_dir),
-            None => printer::failed(&name, "recipe not found"),
+            Some(recipe) => runner::status_with_setup_output(&recipe, &config_dir, declared),
+            None => {
+                let installed = crate::platform::which(&name);
+                let tag = printer::kind_tag_col("—");
+                let install_str = if installed { "installed" } else { "not installed" };
+                let msg = format!("{:<28}{}  {:<12}  {}", install_str, tag, "—", declared);
+                if installed { printer::ok(&name, &msg); } else { printer::failed(&name, &msg); }
+            }
         }
     }
 
