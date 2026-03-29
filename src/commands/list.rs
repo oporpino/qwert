@@ -26,13 +26,6 @@ pub fn run() -> Result<()> {
         }
     }
 
-    if !config.stacks.is_empty() {
-        printer::h2("Stacks");
-        for stack in &config.stacks {
-            printer::bullet(stack);
-        }
-    }
-
     printer::blank();
     Ok(())
 }

@@ -10,9 +10,6 @@ pub struct QwertConfig {
     pub tools: IndexMap<String, String>,
 
     #[serde(default)]
-    pub stacks: Vec<String>,
-
-    #[serde(default)]
     pub hooks: Hooks,
 }
 
