@@ -90,6 +90,11 @@ pub fn bullet(msg: &str) {
     println!("  {}  {}", colorize(DIM, BULLET), msg);
 }
 
+/// "  use <tool>      declare a tool for this machine"
+pub fn command(cmd: &str, description: &str) {
+    println!("  {}  {}", colorize(BOLD_WHITE, &format!("{:<30}", cmd)), colorize(DIM, description));
+}
+
 // --- Summary line ---
 
 /// "  5/6 done  •  1 failed"

@@ -5,7 +5,8 @@ use clap::{Parser, Subcommand};
     name = "qwert",
     about = "Dev environment manager",
     version,
-    propagate_version = true
+    propagate_version = true,
+    disable_help_subcommand = true
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -44,11 +45,14 @@ pub enum Command {
         tool: Option<String>,
     },
 
-    /// Search available recipes
+    /// Search recipes and brew by name
     Search {
-        /// Search term (optional, lists all if omitted)
-        term: Option<String>,
+        /// Tool name to search for
+        name: String,
     },
+
+    /// Show help
+    Help,
 
     /// List declared tools and their status
     List,

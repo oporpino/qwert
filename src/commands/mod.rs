@@ -2,6 +2,7 @@ pub mod apply;
 pub mod config;
 pub mod doctor;
 pub mod drop_cmd;
+pub mod help;
 pub mod list;
 pub mod reinstall;
 pub mod search;

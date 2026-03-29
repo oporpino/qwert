@@ -23,13 +23,11 @@ fn main() {
 
         Command::Drop { name, uninstall } => commands::drop_cmd::run(&name, uninstall),
 
-        Command::Apply { tool, dry_run } => {
-            commands::apply::run(tool.as_deref(), dry_run)
-        }
+        Command::Apply { tool, dry_run } => commands::apply::run(tool.as_deref(), dry_run),
 
         Command::Status { tool } => commands::status::run(tool.as_deref()),
 
-        Command::Search { term } => commands::search::run(term.as_deref()),
+        Command::Search { name } => commands::search::run(&name),
 
         Command::List => commands::list::run(),
 
@@ -49,6 +47,11 @@ fn main() {
         Command::Config { action } => match action {
             ConfigAction::Edit => commands::config::edit(),
         },
+
+        Command::Help => {
+            commands::help::run();
+            Ok(())
+        }
     };
 
     if let Err(e) = result {
