@@ -191,22 +191,26 @@ configure_shell() {
         return
     fi
 
-    printf '\n# qwert\n' >> "${rc_file}"
-    printf 'export PATH="${HOME}/.qwert/bin:${PATH}"\n' >> "${rc_file}"
-    printf 'eval "$(qwert hook init)"\n' >> "${rc_file}"
-    printf 'eval "$(qwert hook end)"\n' >> "${rc_file}"
-    ok "Shell hooks configured in ${rc_file}"
+    # Build the init block (PATH + hook init) to prepend
+    local init_block
+    init_block="$(printf '# qwert\nexport PATH="${HOME}/.qwert/bin:${PATH}"\n')"
 
-    # QWERT_CONFIG_DIR (only write if non-default)
+    # QWERT_CONFIG_DIR (only if non-default)
     local default_config="${HOME}/.config"
     if [ "${QWERT_CONFIG_DIR}" != "${default_config}" ]; then
-        if grep -qF 'QWERT_CONFIG_DIR' "${rc_file}"; then
-            ok "QWERT_CONFIG_DIR already set in ${rc_file}"
-        else
-            printf 'export QWERT_CONFIG_DIR="%s"\n' "${QWERT_CONFIG_DIR}" >> "${rc_file}"
-            ok "QWERT_CONFIG_DIR configured in ${rc_file}"
-        fi
+        init_block="${init_block}$(printf 'export QWERT_CONFIG_DIR="%s"\n' "${QWERT_CONFIG_DIR}")"
     fi
+
+    init_block="${init_block}$(printf 'eval "$(qwert hook init)"\n')"
+
+    # Prepend init block to rc file
+    printf '%s\n' "${init_block}" | cat - "${rc_file}" > "${rc_file}.tmp" \
+        && mv "${rc_file}.tmp" "${rc_file}"
+    ok "init hook added to top of ${rc_file}"
+
+    # Append end hook
+    printf '\neval "$(qwert hook end)"\n' >> "${rc_file}"
+    ok "end hook added to bottom of ${rc_file}"
 }
 
 # ---------------------------------------------------------------------------
