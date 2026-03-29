@@ -79,6 +79,14 @@ ask_config_dir() {
     fi
 
     mkdir -p "${QWERT_CONFIG_DIR}"
+
+    # Persist non-default config dir to ~/.qwert/config (read by qwert at runtime)
+    local default="${HOME}/.config"
+    if [ "${QWERT_CONFIG_DIR}" != "${default}" ]; then
+        mkdir -p "${QWERT_HOME}"
+        printf 'QWERT_CONFIG_DIR=%s\n' "${QWERT_CONFIG_DIR}" > "${QWERT_HOME}/config"
+    fi
+
     ok "Config dir: ${QWERT_CONFIG_DIR}"
 
     # Suggest git init if not already a repo
@@ -203,7 +211,7 @@ configure_shell() {
     fi
 
     # Remove any existing qwert lines before reinstalling
-    grep -vE '(# qwert|\.qwert/bin|qwert hook|qwert completions|source <\(qwert|\.qwert/completions|QWERT_CONFIG_DIR)' \
+    grep -vE '(# qwert|\.qwert/bin|qwert hook|qwert completions|source <\(qwert|\.qwert/completions)' \
         "${rc_file}" > "${rc_file}.tmp" && mv "${rc_file}.tmp" "${rc_file}"
 
     # Build init block into a temp file (avoids $() stripping newlines)
@@ -212,12 +220,6 @@ configure_shell() {
 
     printf '# qwert\n' >> "${init_tmp}"
     printf 'export PATH="${HOME}/.qwert/bin:${PATH}"\n' >> "${init_tmp}"
-
-    # QWERT_CONFIG_DIR (only if non-default)
-    local default_config="${HOME}/.config"
-    if [ "${QWERT_CONFIG_DIR}" != "${default_config}" ]; then
-        printf 'export QWERT_CONFIG_DIR="%s"\n' "${QWERT_CONFIG_DIR}" >> "${init_tmp}"
-    fi
 
     # fpath for zsh completions (must be before compinit)
     local shell_name
