@@ -60,6 +60,26 @@ pub fn run_cmd(cmd: &str) -> Result<()> {
     }
 }
 
+/// Execute a shell command, capturing stderr; on failure returns stderr content
+pub fn run_cmd_capture(cmd: &str) -> Result<(), String> {
+    let out = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(cmd)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if out.status.success() {
+        Ok(())
+    } else {
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        Err(if stderr.is_empty() {
+            format!("command failed: {}", cmd)
+        } else {
+            stderr
+        })
+    }
+}
+
 /// Check if a binary exists on PATH
 pub fn which(binary: &str) -> bool {
     std::process::Command::new("which")

@@ -103,9 +103,9 @@ pub fn uninstall(recipe: &Recipe) -> RunResult {
     if let Some(adapter) = crate::adapters::for_kind(&recipe.meta.kind) {
         if adapter.available() {
             let cmd = adapter.uninstall_cmd(pkg_name(recipe));
-            return match platform::run_cmd(&cmd) {
+            return match platform::run_cmd_capture(&cmd) {
                 Ok(_) => RunResult::Installed,
-                Err(e) => RunResult::Failed(e.to_string()),
+                Err(e) => RunResult::Failed(e),
             };
         }
     }
