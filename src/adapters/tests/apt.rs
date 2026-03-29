@@ -2,16 +2,6 @@ use super::super::AptAdapter;
 use super::super::PackageAdapter;
 
 #[test]
-fn name_returns_apt() {
-    // arrange
-    let adapter = AptAdapter;
-    // act
-    let name = adapter.name();
-    // assert
-    assert_eq!(name, "apt");
-}
-
-#[test]
 fn install_cmd_returns_apt_install_pkg() {
     // arrange
     let adapter = AptAdapter;

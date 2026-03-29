@@ -37,10 +37,6 @@ impl QwertState {
         self.installed.retain(|t| t != name);
     }
 
-    pub fn is_installed(&self, name: &str) -> bool {
-        self.installed.iter().any(|t| t == name)
-    }
-
     /// Tools in state but not in the manifest — should be uninstalled.
     pub fn orphans(&self, manifest_tools: &[String]) -> Vec<&str> {
         self.installed
@@ -69,7 +65,7 @@ mod tests {
         // act
         state.mark_installed("tmux");
         // assert
-        assert!(state.is_installed("tmux"));
+        assert!(state.installed.contains(&"tmux".to_string()));
     }
 
     #[test]
@@ -92,8 +88,8 @@ mod tests {
         // act
         state.mark_removed("tmux");
         // assert
-        assert!(!state.is_installed("tmux"));
-        assert!(state.is_installed("neovim"));
+        assert!(!state.installed.contains(&"tmux".to_string()));
+        assert!(state.installed.contains(&"neovim".to_string()));
     }
 
     #[test]
@@ -105,14 +101,6 @@ mod tests {
         state.mark_removed("tmux");
         // assert
         assert_eq!(state.installed.len(), 1);
-    }
-
-    #[test]
-    fn is_installed_returns_false_when_absent() {
-        // arrange
-        let state = QwertState::default();
-        // act / assert
-        assert!(!state.is_installed("tmux"));
     }
 
     #[test]
@@ -155,8 +143,8 @@ mod tests {
         let loaded = QwertState::load(&path).unwrap();
         std::fs::remove_file(&path).ok();
         // assert
-        assert!(loaded.is_installed("tmux"));
-        assert!(loaded.is_installed("delta"));
+        assert!(loaded.installed.contains(&"tmux".to_string()));
+        assert!(loaded.installed.contains(&"delta".to_string()));
         assert_eq!(loaded.installed.len(), 2);
     }
 

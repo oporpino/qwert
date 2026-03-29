@@ -1,4 +1,4 @@
-include .commons/make/shell.makefile
+include .commons/make/rust.makefile
 
 t:
 	@cargo test

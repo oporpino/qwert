@@ -9,7 +9,6 @@ pub use pacman::PacmanAdapter;
 use crate::recipe::schema::RecipeKind;
 
 pub trait PackageAdapter {
-    fn name(&self) -> &str;
     fn available(&self) -> bool;
     fn install_cmd(&self, pkg: &str) -> String;
     fn upgrade_cmd(&self, pkg: &str) -> String;

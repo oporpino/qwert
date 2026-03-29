@@ -2,16 +2,6 @@ use super::super::BrewAdapter;
 use super::super::PackageAdapter;
 
 #[test]
-fn name_returns_brew() {
-    // arrange
-    let adapter = BrewAdapter;
-    // act
-    let name = adapter.name();
-    // assert
-    assert_eq!(name, "brew");
-}
-
-#[test]
 fn install_cmd_returns_brew_install_pkg() {
     // arrange
     let adapter = BrewAdapter;
@@ -55,6 +45,6 @@ fn install_cmd_uses_provided_pkg_name() {
 fn available_returns_bool() {
     // arrange
     let adapter = BrewAdapter;
-    // act / assert — smoke test, just ensure it doesn't panic
+    // act / assert — smoke test
     let _ = adapter.available();
 }
