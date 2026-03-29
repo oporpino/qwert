@@ -131,7 +131,19 @@ pub fn uninstall_with_output(recipe: &Recipe) -> bool {
     match uninstall(recipe) {
         RunResult::Installed => { printer::ok(name, "uninstalled"); true }
         RunResult::NotSupported => { printer::failed(name, "no uninstall command defined"); false }
-        RunResult::Failed(err) => { printer::failed(name, &err); false }
+        RunResult::Failed(err) => {
+            if err.contains("required by") || err.contains("is a dependency of") {
+                printer::warning(&format!(
+                    "{} not uninstalled — required by another package. \
+                     Remove manually: brew uninstall --ignore-dependencies {}",
+                    name, name
+                ));
+                true
+            } else {
+                printer::failed(name, &err);
+                false
+            }
+        }
         RunResult::AlreadyInstalled { .. } => unreachable!(),
     }
 }
