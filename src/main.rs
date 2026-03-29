@@ -50,6 +50,8 @@ fn main() {
             Ok(())
         }
 
+        Command::Completions { shell } => commands::completions::run(&shell),
+
         Command::Hook { phase } => commands::hook::run(&phase),
 
         Command::Info { name } => commands::info::run(&name),

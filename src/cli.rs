@@ -66,6 +66,12 @@ pub enum Command {
         name: String,
     },
 
+    /// Generate shell completion script
+    Completions {
+        /// Shell: bash, zsh, fish
+        shell: String,
+    },
+
     /// Show full details for a tool (recipe, install status, setup)
     Info {
         /// Tool name
