@@ -3,37 +3,58 @@ use super::super::PackageAdapter;
 
 #[test]
 fn name_returns_brew() {
+    // arrange
     let adapter = BrewAdapter;
-    assert_eq!(adapter.name(), "brew");
+    // act
+    let name = adapter.name();
+    // assert
+    assert_eq!(name, "brew");
 }
 
 #[test]
 fn install_cmd_returns_brew_install_pkg() {
+    // arrange
     let adapter = BrewAdapter;
-    assert_eq!(adapter.install_cmd("tmux"), "brew install tmux");
+    // act
+    let cmd = adapter.install_cmd("tmux");
+    // assert
+    assert_eq!(cmd, "brew install tmux");
 }
 
 #[test]
 fn upgrade_cmd_returns_brew_upgrade_pkg() {
+    // arrange
     let adapter = BrewAdapter;
-    assert_eq!(adapter.upgrade_cmd("tmux"), "brew upgrade tmux");
+    // act
+    let cmd = adapter.upgrade_cmd("tmux");
+    // assert
+    assert_eq!(cmd, "brew upgrade tmux");
 }
 
 #[test]
 fn uninstall_cmd_returns_brew_uninstall_pkg() {
+    // arrange
     let adapter = BrewAdapter;
-    assert_eq!(adapter.uninstall_cmd("tmux"), "brew uninstall tmux");
+    // act
+    let cmd = adapter.uninstall_cmd("tmux");
+    // assert
+    assert_eq!(cmd, "brew uninstall tmux");
 }
 
 #[test]
 fn install_cmd_uses_provided_pkg_name() {
-    // delta recipe has meta.name = "delta" but brew package = "git-delta"
+    // arrange — delta recipe: meta.name = "delta" but brew package = "git-delta"
     let adapter = BrewAdapter;
-    assert_eq!(adapter.install_cmd("git-delta"), "brew install git-delta");
+    // act
+    let cmd = adapter.install_cmd("git-delta");
+    // assert
+    assert_eq!(cmd, "brew install git-delta");
 }
 
 #[test]
 fn available_returns_bool() {
-    // smoke test — just ensure it doesn't panic
-    let _ = BrewAdapter.available();
+    // arrange
+    let adapter = BrewAdapter;
+    // act / assert — smoke test, just ensure it doesn't panic
+    let _ = adapter.available();
 }
