@@ -72,7 +72,7 @@ ask_config_dir() {
     local candidate="${persisted:-${default}}"
     if [ -f "${candidate}/qwert.yml" ]; then
         QWERT_CONFIG_DIR="${candidate}"
-        ok "Config dir: ${QWERT_CONFIG_DIR}  (qwert.yml found, keeping existing)"
+        ok "Config dir: ${QWERT_CONFIG_DIR}  (existing qwert.yml found)"
         return
     fi
 
