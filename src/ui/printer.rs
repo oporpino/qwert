@@ -1,4 +1,5 @@
-use super::colors::*;
+use super::colors::{self, *};
+use colors::ORANGE;
 
 const TICK: &str = "✓";
 const ARROW: &str = "→";
@@ -117,6 +118,7 @@ pub fn kind_tag(kind: &str) -> String {
     match kind {
         "brew" => colorize(BRIGHT_BLUE, &format!("[{}]", kind)),
         "apt" | "pacman" => colorize(BRIGHT_YELLOW, &format!("[{}]", kind)),
+        "qwert" => colorize(ORANGE, &format!("[{}]", kind)),
         _ => colorize(DIM, &format!("[{}]", kind)),
     }
 }

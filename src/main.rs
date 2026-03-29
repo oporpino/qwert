@@ -24,6 +24,7 @@ fn main() {
         },
 
         Command::Versions { name } => commands::versions_cmd::run(&name),
+        Command::SearchComplete { term } => commands::search_complete_cmd::run(&term),
 
         Command::Install { name } => commands::install_cmd::run(&name),
 

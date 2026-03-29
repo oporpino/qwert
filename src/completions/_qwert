@@ -6,22 +6,19 @@
 # ---------------------------------------------------------------------------
 
 _qwert_tools() {
-  local -a tools
+  [[ ${#PREFIX} -lt 2 ]] && return
 
-  # Local recipes (always included)
-  local recipes_dir="${HOME}/.qwert/recipes"
-  if [[ -d "$recipes_dir" ]]; then
-    tools+=("${recipes_dir}"/*/(:t))
-  fi
+  local -a names descs
+  local line name desc
 
-  # Brew search (only when user has typed at least 2 chars)
-  if command -v brew &>/dev/null && [[ ${#PREFIX} -ge 2 ]]; then
-    local -a brew_results
-    brew_results=($(brew search "$PREFIX" 2>/dev/null | grep -v '^==' | grep -v '^$'))
-    tools+=($brew_results)
-  fi
+  while IFS=$'\t' read -r name desc; do
+    [[ -z "$name" ]] && continue
+    names+=("$name")
+    descs+=("${desc:-(brew)}")
+  done < <(qwert _search "$PREFIX" 2>/dev/null)
 
-  [[ ${#tools} -gt 0 ]] && compadd -a tools
+  [[ ${#names} -eq 0 ]] && return
+  compadd -l -d descs -a names
 }
 
 _qwert_declared_tools() {

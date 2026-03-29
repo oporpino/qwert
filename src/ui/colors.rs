@@ -26,6 +26,7 @@ pub const BRIGHT_GREEN: &str = "\x1b[0;92m";
 pub const BRIGHT_YELLOW: &str = "\x1b[0;93m";
 pub const BRIGHT_BLUE: &str = "\x1b[0;94m";
 pub const BRIGHT_WHITE: &str = "\x1b[0;97m";
+pub const ORANGE: &str = "\x1b[38;5;208m";
 
 // Semantic presets
 pub const INFO: &str = BOLD_BLUE;

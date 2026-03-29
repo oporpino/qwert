@@ -79,6 +79,13 @@ pub enum Command {
         name: String,
     },
 
+    /// Search tools and output name\tdescription per line (used by shell completions)
+    #[command(name = "_search", hide = true)]
+    SearchComplete {
+        /// Search term
+        term: String,
+    },
+
     /// Show full details for a tool (recipe, install status, setup)
     Info {
         /// Tool name
