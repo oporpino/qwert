@@ -60,28 +60,39 @@ detect_target() {
 
 ask_config_dir() {
     local default="${HOME}/.config"
-    local default_display="~/.config"
     local input
+
+    # If ~/.qwert/config already points to a dir with qwert.yml, use it as-is
+    local persisted=""
+    if [ -f "${QWERT_HOME}/config" ]; then
+        persisted="$(grep '^QWERT_CONFIG_DIR=' "${QWERT_HOME}/config" | cut -d= -f2)"
+        persisted="${persisted/#\~/${HOME}}"
+    fi
+
+    local candidate="${persisted:-${default}}"
+    if [ -f "${candidate}/qwert.yml" ]; then
+        QWERT_CONFIG_DIR="${candidate}"
+        ok "Config dir: ${QWERT_CONFIG_DIR}  (qwert.yml found, keeping existing)"
+        return
+    fi
 
     printf "\n"
     printf "  \033[1mConfig directory\033[0m\n"
     dim "This is where qwert.yml will be created (e.g. ~/.config/qwert.yml)."
     dim "Save this folder in a personal git repo to replicate your environment on any machine."
     printf "\n"
-    printf "  Location [%s]: " "${default_display}"
+    printf "  Location [~/.config]: "
     read -r input
 
     if [ -z "${input}" ]; then
         QWERT_CONFIG_DIR="${default}"
     else
-        # Expand ~ manually
         QWERT_CONFIG_DIR="${input/#\~/${HOME}}"
     fi
 
     mkdir -p "${QWERT_CONFIG_DIR}"
 
     # Persist non-default config dir to ~/.qwert/config (read by qwert at runtime)
-    local default="${HOME}/.config"
     if [ "${QWERT_CONFIG_DIR}" != "${default}" ]; then
         mkdir -p "${QWERT_HOME}"
         printf 'QWERT_CONFIG_DIR=%s\n' "${QWERT_CONFIG_DIR}" > "${QWERT_HOME}/config"
