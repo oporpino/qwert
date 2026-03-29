@@ -1,0 +1,2 @@
+dest = "~/.tmux.conf"
+symlink = true

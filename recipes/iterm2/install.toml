@@ -12,6 +12,3 @@ macos = "brew install --cask iterm2"
 
 [upgrade]
 macos = "brew upgrade --cask iterm2"
-
-[config]
-dest = "~/.config/qwert/iterm2"

@@ -1,0 +1,2 @@
+dest = "~/.config/lvim/config.lua"
+symlink = true

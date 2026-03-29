@@ -7,7 +7,3 @@ type = "brew"
 [check]
 command = "tmux"
 version_flag = "-V"
-
-[config]
-dest = "~/.tmux.conf"
-symlink = true

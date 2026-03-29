@@ -1,0 +1,2 @@
+dest = "~/.config/nvim"
+symlink = true

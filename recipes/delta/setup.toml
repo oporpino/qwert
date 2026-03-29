@@ -1,0 +1,29 @@
+dest = "~/.gitconfig"
+macos = [
+  "git config --global core.pager delta",
+  "git config --global interactive.diffFilter 'delta --color-only'",
+  "git config --global delta.navigate true",
+  "git config --global delta.light false",
+  "git config --global merge.conflictstyle diff3",
+  "git config --global diff.colorMoved default",
+]
+debian = [
+  "git config --global core.pager delta",
+  "git config --global interactive.diffFilter 'delta --color-only'",
+  "git config --global delta.navigate true",
+  "git config --global delta.light false",
+  "git config --global merge.conflictstyle diff3",
+  "git config --global diff.colorMoved default",
+]
+
+[undo]
+macos = [
+  "git config --global --unset core.pager",
+  "git config --global --unset interactive.diffFilter",
+  "git config --global --remove-section delta",
+]
+debian = [
+  "git config --global --unset core.pager",
+  "git config --global --unset interactive.diffFilter",
+  "git config --global --remove-section delta",
+]
