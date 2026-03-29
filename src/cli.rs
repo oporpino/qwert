@@ -72,6 +72,13 @@ pub enum Command {
         shell: String,
     },
 
+    /// Print available versions for a tool (used by shell completions)
+    #[command(name = "_versions", hide = true)]
+    Versions {
+        /// Tool name
+        name: String,
+    },
+
     /// Show full details for a tool (recipe, install status, setup)
     Info {
         /// Tool name

@@ -9,7 +9,7 @@ pub fn run(name: &str) -> Result<()> {
     let mut config = qwert_yml::QwertConfig::load(&manifest_path)?;
 
     if !config.has_tool(name) {
-        config.add_tool(name);
+        config.add_tool(name, None);
         config.save(&manifest_path)?;
         printer::ok(name, "added to qwert.yml");
     }

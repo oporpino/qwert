@@ -18,9 +18,12 @@ fn main() {
             UseTarget::Tool(args) => {
                 let name = args.first().map(|s| s.as_str()).unwrap_or("");
                 let no_install = args.contains(&"--no-install".to_string());
-                commands::use_cmd::use_tool(name, no_install)
+                let version = args.get(1).filter(|v| !v.starts_with('-')).map(|s| s.as_str());
+                commands::use_cmd::use_tool(name, version, no_install)
             }
         },
+
+        Command::Versions { name } => commands::versions_cmd::run(&name),
 
         Command::Install { name } => commands::install_cmd::run(&name),
 

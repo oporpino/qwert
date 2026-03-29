@@ -42,8 +42,10 @@ impl QwertConfig {
         Ok(())
     }
 
-    pub fn add_tool(&mut self, name: &str) {
-        self.tools.entry(name.to_string()).or_insert_with(|| "latest".to_string());
+    /// Add or update a tool. `version` defaults to "latest" if None.
+    pub fn add_tool(&mut self, name: &str, version: Option<&str>) {
+        let ver = version.unwrap_or("latest").to_string();
+        self.tools.insert(name.to_string(), ver);
     }
 
     pub fn remove_tool(&mut self, name: &str) {
@@ -117,7 +119,7 @@ mod tests {
         // arrange
         let mut config = QwertConfig::default();
         // act
-        config.add_tool("neovim");
+        config.add_tool("neovim", None);
         // assert
         assert_eq!(config.tools.get("neovim").map(|s| s.as_str()), Some("latest"));
     }
@@ -126,9 +128,9 @@ mod tests {
     fn add_tool_ignores_duplicate() {
         // arrange
         let mut config = QwertConfig::default();
-        config.add_tool("neovim");
+        config.add_tool("neovim", None);
         // act
-        config.add_tool("neovim");
+        config.add_tool("neovim", None);
         // assert
         assert_eq!(config.tools.len(), 1);
     }
@@ -137,8 +139,8 @@ mod tests {
     fn remove_tool_deletes_existing_tool() {
         // arrange
         let mut config = QwertConfig::default();
-        config.add_tool("neovim");
-        config.add_tool("tmux");
+        config.add_tool("neovim", None);
+        config.add_tool("tmux", None);
         // act
         config.remove_tool("neovim");
         // assert
@@ -149,7 +151,7 @@ mod tests {
     fn remove_tool_is_noop_when_absent() {
         // arrange
         let mut config = QwertConfig::default();
-        config.add_tool("tmux");
+        config.add_tool("tmux", None);
         // act
         config.remove_tool("neovim");
         // assert
@@ -160,7 +162,7 @@ mod tests {
     fn has_tool_returns_true_when_present() {
         // arrange
         let mut config = QwertConfig::default();
-        config.add_tool("tmux");
+        config.add_tool("tmux", None);
         // act
         let result = config.has_tool("tmux");
         // assert
@@ -223,8 +225,8 @@ mod tests {
     fn save_and_load_roundtrip() {
         // arrange
         let mut config = QwertConfig::default();
-        config.add_tool("tmux");
-        config.add_tool("neovim");
+        config.add_tool("tmux", None);
+        config.add_tool("neovim", None);
         config.add_hook("init", "~/env.sh");
         let path = std::env::temp_dir().join("qwert_test_roundtrip.yml");
         // act

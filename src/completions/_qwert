@@ -1,0 +1,102 @@
+#compdef qwert
+
+# ---------------------------------------------------------------------------
+# qwert zsh completion
+# Dynamic: tool names from recipes, versions from package manager
+# ---------------------------------------------------------------------------
+
+_qwert_recipes() {
+  local recipes_dir="${HOME}/.qwert/recipes"
+  [[ -d "$recipes_dir" ]] || return
+  local -a tools
+  tools=("${recipes_dir}"/*/(:t))
+  compadd -a tools
+}
+
+_qwert_declared_tools() {
+  local -a tools
+  tools=($(qwert list 2>/dev/null | awk '{print $3}'))
+  [[ ${#tools} -gt 0 ]] && compadd -a tools
+}
+
+_qwert_versions() {
+  local tool="$1"
+  [[ -z "$tool" ]] && return
+  local -a versions
+  versions=($(qwert _versions "$tool" 2>/dev/null))
+  [[ ${#versions} -gt 0 ]] && compadd -a versions
+}
+
+_qwert() {
+  local state
+
+  _arguments -C \
+    '1: :->cmd' \
+    '*: :->args' && return 0
+
+  case "$state" in
+    cmd)
+      local -a commands
+      commands=(
+        'use:declare a tool, install it, and run setup'
+        'install:declare a tool and install it (no setup)'
+        'setup:run setup for a declared tool'
+        'uninstall:remove declaration and uninstall'
+        'drop:full teardown with setup undo'
+        'apply:apply qwert.yml to the machine'
+        'status:show status of declared tools'
+        'list:list declared tools'
+        'info:show full details for a tool'
+        'search:search recipes and brew'
+        'upgrade:upgrade tools'
+        'reinstall:reinstall a tool'
+        'self:manage qwert itself'
+        'recipes:manage the recipe index'
+        'hook:output shell hook (eval in .zshrc)'
+        'completions:generate shell completion script'
+        'doctor:health check'
+        'config:open qwert.yml in \$EDITOR'
+        'help:show help'
+        'version:show qwert version'
+      )
+      _describe 'command' commands
+      ;;
+
+    args)
+      case "$words[2]" in
+        use)
+          case $((CURRENT - 2)) in
+            1) _qwert_recipes ;;
+            2) _qwert_versions "$words[3]" ;;
+          esac
+          ;;
+        install|setup|uninstall|drop|info|reinstall)
+          _qwert_recipes
+          ;;
+        apply|status|upgrade)
+          _qwert_declared_tools
+          ;;
+        search)
+          # free-form, no completion
+          ;;
+        hook)
+          compadd init end
+          ;;
+        completions)
+          compadd bash zsh fish
+          ;;
+        self)
+          compadd upgrade reinstall
+          ;;
+        recipes)
+          compadd update
+          ;;
+        config)
+          compadd edit
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_qwert "$@"

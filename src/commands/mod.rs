@@ -17,3 +17,4 @@ pub mod status;
 pub mod uninstall_cmd;
 pub mod upgrade;
 pub mod use_cmd;
+pub mod versions_cmd;
