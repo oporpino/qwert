@@ -11,11 +11,11 @@ pub struct QwertConfig {
     pub stacks: Vec<String>,
 
     #[serde(default)]
-    pub scripts: Scripts,
+    pub hooks: Hooks,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct Scripts {
+pub struct Hooks {
     #[serde(default)]
     pub init: Vec<String>,
 
@@ -57,10 +57,10 @@ impl QwertConfig {
         self.tools.iter().any(|t| t == name)
     }
 
-    pub fn add_script(&mut self, hook: &str, path: &str) {
+    pub fn add_hook(&mut self, hook: &str, path: &str) {
         let scripts = match hook {
-            "init" => &mut self.scripts.init,
-            "end" => &mut self.scripts.end,
+            "init" => &mut self.hooks.init,
+            "end" => &mut self.hooks.end,
             _ => return,
         };
         if !scripts.iter().any(|s| s == path) {
@@ -176,45 +176,45 @@ mod tests {
     }
 
     #[test]
-    fn add_script_appends_to_init_hook() {
+    fn add_hook_appends_to_init_hook() {
         // arrange
         let mut config = QwertConfig::default();
         // act
-        config.add_script("init", "~/dotfiles/env.sh");
+        config.add_hook("init", "~/dotfiles/env.sh");
         // assert
-        assert_eq!(config.scripts.init, vec!["~/dotfiles/env.sh"]);
+        assert_eq!(config.hooks.init, vec!["~/dotfiles/env.sh"]);
     }
 
     #[test]
-    fn add_script_appends_to_end_hook() {
+    fn add_hook_appends_to_end_hook() {
         // arrange
         let mut config = QwertConfig::default();
         // act
-        config.add_script("end", "~/dotfiles/aliases.sh");
+        config.add_hook("end", "~/dotfiles/aliases.sh");
         // assert
-        assert_eq!(config.scripts.end, vec!["~/dotfiles/aliases.sh"]);
+        assert_eq!(config.hooks.end, vec!["~/dotfiles/aliases.sh"]);
     }
 
     #[test]
-    fn add_script_ignores_duplicate_path() {
+    fn add_hook_ignores_duplicate_path() {
         // arrange
         let mut config = QwertConfig::default();
-        config.add_script("init", "~/env.sh");
+        config.add_hook("init", "~/env.sh");
         // act
-        config.add_script("init", "~/env.sh");
+        config.add_hook("init", "~/env.sh");
         // assert
-        assert_eq!(config.scripts.init.len(), 1);
+        assert_eq!(config.hooks.init.len(), 1);
     }
 
     #[test]
-    fn add_script_ignores_unknown_hook() {
+    fn add_hook_ignores_unknown_hook() {
         // arrange
         let mut config = QwertConfig::default();
         // act
-        config.add_script("unknown", "~/script.sh");
+        config.add_hook("unknown", "~/script.sh");
         // assert — no panic, no side effects
-        assert!(config.scripts.init.is_empty());
-        assert!(config.scripts.end.is_empty());
+        assert!(config.hooks.init.is_empty());
+        assert!(config.hooks.end.is_empty());
     }
 
     #[test]
@@ -223,7 +223,7 @@ mod tests {
         let mut config = QwertConfig::default();
         config.add_tool("tmux");
         config.add_tool("neovim");
-        config.add_script("init", "~/env.sh");
+        config.add_hook("init", "~/env.sh");
         let path = std::env::temp_dir().join("qwert_test_roundtrip.yml");
         // act
         config.save(&path).unwrap();
@@ -231,7 +231,7 @@ mod tests {
         std::fs::remove_file(&path).ok();
         // assert
         assert_eq!(loaded.tools, vec!["tmux", "neovim"]);
-        assert_eq!(loaded.scripts.init, vec!["~/env.sh"]);
+        assert_eq!(loaded.hooks.init, vec!["~/env.sh"]);
     }
 
     #[test]

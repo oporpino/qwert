@@ -57,7 +57,7 @@ pub fn use_script(hook: &str, path: &str) -> Result<()> {
     let manifest_path = qwert_yml::manifest_path();
     let mut config = qwert_yml::QwertConfig::load(&manifest_path)?;
 
-    config.add_script(hook, path);
+    config.add_hook(hook, path);
     config.save(&manifest_path)?;
 
     printer::ok("script", &format!("added to {} hook in qwert.yml", hook));
