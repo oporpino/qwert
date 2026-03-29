@@ -151,6 +151,22 @@ install_from_source() {
 }
 
 # ---------------------------------------------------------------------------
+# install completions
+# ---------------------------------------------------------------------------
+
+install_completions() {
+    local shell_name
+    shell_name="$(basename "${SHELL:-bash}")"
+
+    if [ "${shell_name}" = "zsh" ]; then
+        local comp_dir="${QWERT_HOME}/completions"
+        mkdir -p "${comp_dir}"
+        "${QWERT_BIN}/qwert" completions zsh > "${comp_dir}/_qwert"
+        ok "Zsh completions installed → ${comp_dir}/_qwert"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # install recipes
 # ---------------------------------------------------------------------------
 
@@ -187,7 +203,7 @@ configure_shell() {
     fi
 
     # Remove any existing qwert lines before reinstalling
-    grep -vE '(# qwert|\.qwert/bin|qwert hook|qwert completions|source <\(qwert|QWERT_CONFIG_DIR)' \
+    grep -vE '(# qwert|\.qwert/bin|qwert hook|qwert completions|source <\(qwert|\.qwert/completions|QWERT_CONFIG_DIR)' \
         "${rc_file}" > "${rc_file}.tmp" && mv "${rc_file}.tmp" "${rc_file}"
 
     # Build init block into a temp file (avoids $() stripping newlines)
@@ -203,6 +219,13 @@ configure_shell() {
         printf 'export QWERT_CONFIG_DIR="%s"\n' "${QWERT_CONFIG_DIR}" >> "${init_tmp}"
     fi
 
+    # fpath for zsh completions (must be before compinit)
+    local shell_name
+    shell_name="$(basename "${SHELL:-bash}")"
+    if [ "${shell_name}" = "zsh" ]; then
+        printf 'fpath=("${HOME}/.qwert/completions" $fpath)\n' >> "${init_tmp}"
+    fi
+
     printf 'eval "$(qwert hook init)"\n' >> "${init_tmp}"
     printf '\n' >> "${init_tmp}"
 
@@ -211,12 +234,8 @@ configure_shell() {
     rm "${init_tmp}"
     ok "init hook added to top of ${rc_file}"
 
-    # Completions and end hook go at the bottom (after compinit)
-    local shell_name
-    shell_name="$(basename "${SHELL:-bash}")"
-    printf '\nsource <(qwert completions %s)\n' "${shell_name}" >> "${rc_file}"
-    printf 'eval "$(qwert hook end)"\n' >> "${rc_file}"
-    ok "completions and end hook added to bottom of ${rc_file}"
+    printf '\neval "$(qwert hook end)"\n' >> "${rc_file}"
+    ok "end hook added to bottom of ${rc_file}"
 }
 
 # ---------------------------------------------------------------------------
@@ -242,6 +261,7 @@ main() {
     fi
 
     install_recipes
+    install_completions
     configure_shell
 
     printf "\n"
