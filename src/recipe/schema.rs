@@ -83,21 +83,6 @@ pub struct RecipeConfig {
     pub symlink: bool,
 }
 
-fn make_recipe(install_macos: Option<Commands>, install_debian: Option<Commands>) -> Recipe {
-    Recipe {
-        meta: RecipeMeta {
-            name: "test".into(),
-            version: "1.0.0".into(),
-            description: "test recipe".into(),
-            kind: RecipeKind::Brew,
-        },
-        check: None,
-        install: Some(RecipeInstall { macos: install_macos, debian: install_debian }),
-        upgrade: None,
-        config: None,
-    }
-}
-
 impl Recipe {
     pub fn install_steps_for(&self, platform: &crate::platform::Platform) -> Vec<&str> {
         let Some(install) = &self.install else { return vec![] };
@@ -122,6 +107,21 @@ impl Recipe {
 mod tests {
     use super::*;
     use crate::platform::Platform;
+
+    fn make_recipe(install_macos: Option<Commands>, install_debian: Option<Commands>) -> Recipe {
+        Recipe {
+            meta: RecipeMeta {
+                name: "test".into(),
+                version: "1.0.0".into(),
+                description: "test recipe".into(),
+                kind: RecipeKind::Brew,
+            },
+            check: None,
+            install: Some(RecipeInstall { macos: install_macos, debian: install_debian }),
+            upgrade: None,
+            config: None,
+        }
+    }
 
     #[test]
     fn commands_one_returns_single_step() {
