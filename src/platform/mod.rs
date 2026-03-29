@@ -43,47 +43,6 @@ pub trait PlatformOps {
 
     /// Run a shell upgrade command
     fn upgrade(&self, cmd: &str) -> Result<()>;
-
-    /// Check if a binary exists on PATH
-    fn is_installed(&self, binary: &str) -> bool {
-        which(binary)
-    }
-
-    /// Apply OS-level system preferences (e.g. macOS defaults write)
-    fn apply_system_preferences(&self) -> Result<()> {
-        Ok(()) // default: no-op
-    }
-
-    /// Default shell for the current user
-    fn detect_shell(&self) -> Shell {
-        std::env::var("SHELL")
-            .ok()
-            .and_then(|s| {
-                if s.contains("zsh") {
-                    Some(Shell::Zsh)
-                } else if s.contains("bash") {
-                    Some(Shell::Bash)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(Shell::Bash)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Shell {
-    Zsh,
-    Bash,
-}
-
-impl Shell {
-    pub fn rc_file(&self) -> &'static str {
-        match self {
-            Shell::Zsh => ".zshrc",
-            Shell::Bash => ".bashrc",
-        }
-    }
 }
 
 /// Execute a shell command, streaming stdout/stderr to terminal

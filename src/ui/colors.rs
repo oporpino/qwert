@@ -1,4 +1,5 @@
 // ANSI color codes — ported from .commons/scripts/shell/colors/constants
+#![allow(dead_code)]
 
 pub const RESET: &str = "\x1b[0m";
 

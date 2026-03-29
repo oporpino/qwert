@@ -78,10 +78,6 @@ pub fn info(msg: &str) {
     println!("  {}", colorize(INFO, msg));
 }
 
-pub fn success(msg: &str) {
-    println!("  {}", colorize(SUCCESS, msg));
-}
-
 pub fn warning(msg: &str) {
     println!("  {}", colorize(WARNING, &format!("warning: {}", msg)));
 }
