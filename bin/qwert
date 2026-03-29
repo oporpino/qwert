@@ -1,28 +1,2 @@
 #!/bin/bash
-
-command=$1
-subcommand=$2
-
-case $command in
-"setup")
-    $QWERT_DIR/commands/setup.sh $subcommand
-;;
-"status")
-    $QWERT_DIR/commands/status.sh $subcommand
-;;
-"update")
-    $QWERT_DIR/commands/update.sh $subcommand
-;;
-"reinstall")
-    $QWERT_DIR/commands/reinstall.sh
-;;
-"version")
-    $QWERT_DIR/commands/version.sh
-;;
-"list")
-    $QWERT_DIR/commands/list.sh
-;;
-*)
-    echo "I dont understand what you want. Pleas check the parameters"
-;;
-esac
+exec "$QWERT_DIR/v1/bin/qwert" "$@"

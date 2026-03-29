@@ -2,4 +2,4 @@
 
 echo "> Let's check everything is OK:"
 
-. $QWERT_DIR/commands/status/homebrew.sh
+. $QWERT_DIR/v1/commands/status/homebrew.sh

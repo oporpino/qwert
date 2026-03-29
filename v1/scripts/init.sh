@@ -2,4 +2,4 @@
 
 export QWERT_DIR=$HOME/.qwert
 
-. $QWERT_DIR/scripts/init.sh
+. $QWERT_DIR/v1/scripts/init.sh

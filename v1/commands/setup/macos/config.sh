@@ -2,7 +2,7 @@
 
 # constants
 QWERT_USER_CONFIG_DIR=$HOME/.config/qwert
-QWERT_DEFAULTS_CONFIG_DIR=$QWERT_DIR/defaults/config
+QWERT_DEFAULTS_CONFIG_DIR=$QWERT_DIR/v1/defaults/config
 
 echo "> Initializing setup of configuratons"
 

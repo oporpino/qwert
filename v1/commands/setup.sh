@@ -4,7 +4,7 @@ subcommand=$1
 
 case $subcommand in
 "macos")
-    $QWERT_DIR/commands/setup/macos/all.sh
+    $QWERT_DIR/v1/commands/setup/macos/all.sh
 ;;
 "linux")
     echo "QWERT for linux is not implemented yet. Fell free to constribute with us."

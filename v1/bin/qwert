@@ -1,0 +1,28 @@
+#!/bin/bash
+
+command=$1
+subcommand=$2
+
+case $command in
+"setup")
+    $QWERT_DIR/v1/commands/setup.sh $subcommand
+;;
+"status")
+    $QWERT_DIR/v1/commands/status.sh $subcommand
+;;
+"update")
+    $QWERT_DIR/v1/commands/update.sh $subcommand
+;;
+"reinstall")
+    $QWERT_DIR/v1/commands/reinstall.sh
+;;
+"version")
+    $QWERT_DIR/v1/commands/version.sh
+;;
+"list")
+    $QWERT_DIR/v1/commands/list.sh
+;;
+*)
+    echo "I dont understand what you want. Pleas check the parameters"
+;;
+esac
