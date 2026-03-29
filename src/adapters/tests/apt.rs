@@ -18,7 +18,7 @@ fn upgrade_cmd_returns_apt_upgrade_pkg() {
     // act
     let cmd = adapter.upgrade_cmd("tmux");
     // assert
-    assert_eq!(cmd, "sudo apt-get install -y tmux");
+    assert_eq!(cmd, "sudo apt-get install --only-upgrade -y tmux");
 }
 
 #[test]
