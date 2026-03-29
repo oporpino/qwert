@@ -5,12 +5,23 @@
 # Dynamic: tool names from recipes, versions from package manager
 # ---------------------------------------------------------------------------
 
-_qwert_recipes() {
-  local recipes_dir="${HOME}/.qwert/recipes"
-  [[ -d "$recipes_dir" ]] || return
+_qwert_tools() {
   local -a tools
-  tools=("${recipes_dir}"/*/(:t))
-  compadd -a tools
+
+  # Local recipes (always included)
+  local recipes_dir="${HOME}/.qwert/recipes"
+  if [[ -d "$recipes_dir" ]]; then
+    tools+=("${recipes_dir}"/*/(:t))
+  fi
+
+  # Brew search (only when user has typed at least 2 chars)
+  if command -v brew &>/dev/null && [[ ${#PREFIX} -ge 2 ]]; then
+    local -a brew_results
+    brew_results=($(brew search "$PREFIX" 2>/dev/null | grep -v '^==' | grep -v '^$'))
+    tools+=($brew_results)
+  fi
+
+  [[ ${#tools} -gt 0 ]] && compadd -a tools
 }
 
 _qwert_declared_tools() {
@@ -66,12 +77,12 @@ _qwert() {
       case "$words[2]" in
         use)
           case $((CURRENT - 2)) in
-            1) _qwert_recipes ;;
+            1) _qwert_tools ;;
             2) _qwert_versions "$words[3]" ;;
           esac
           ;;
         install|setup|uninstall|drop|info|reinstall)
-          _qwert_recipes
+          _qwert_tools
           ;;
         apply|status|upgrade)
           _qwert_declared_tools
