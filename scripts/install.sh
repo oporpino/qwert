@@ -190,19 +190,9 @@ install_completions() {
 # ---------------------------------------------------------------------------
 
 install_recipes() {
-    info "Installing recipes..."
-    local tmp_dir
-    tmp_dir="$(mktemp -d)"
-
-    git clone --depth 1 "${REPO}.git" "${tmp_dir}" \
-        || die "could not fetch recipes"
-
-    mkdir -p "${QWERT_RECIPES}"
-    # Remove old flat .toml files if present
-    find "${QWERT_RECIPES}" -maxdepth 1 -name "*.toml" -delete 2>/dev/null || true
-    cp -r "${tmp_dir}/recipes/"* "${QWERT_RECIPES}/"
-    rm -rf "${tmp_dir}"
-    ok "Recipes installed → ${QWERT_RECIPES}"
+    info "Downloading recipes..."
+    "${QWERT_BIN}/qwert" recipes update \
+        || die "failed to download recipes"
 }
 
 # ---------------------------------------------------------------------------
