@@ -25,13 +25,29 @@ pub fn installed_version(recipe: &Recipe) -> Option<String> {
     platform::version_of(&check.command, flag)
 }
 
-/// Install a recipe on the current platform
-pub fn install(recipe: &Recipe) -> RunResult {
+/// Install a recipe on the current platform, resolving dependencies first.
+pub fn install(recipe: &Recipe, recipes_dir: &std::path::Path) -> RunResult {
     let platform = platform::detect();
 
     if is_installed(recipe) {
         let version = installed_version(recipe);
         return RunResult::AlreadyInstalled { version };
+    }
+
+    // Resolve and install dependencies first
+    for dep_name in &recipe.meta.depends {
+        match super::index::find(dep_name, recipes_dir) {
+            Some(dep) => {
+                if !is_installed(&dep) {
+                    printer::installing(dep_name, &format!("dependency of {}...", recipe.meta.name));
+                    let result = install(&dep, recipes_dir);
+                    if matches!(result, RunResult::Failed(_) | RunResult::NotSupported) {
+                        return RunResult::Failed(format!("dependency '{}' failed to install", dep_name));
+                    }
+                }
+            }
+            None => return RunResult::Failed(format!("dependency '{}' not found", dep_name)),
+        }
     }
 
     let steps = recipe.install_steps_for(&platform);
@@ -46,6 +62,49 @@ pub fn install(recipe: &Recipe) -> RunResult {
         }
     }
     RunResult::Installed
+}
+
+/// Uninstall a recipe on the current platform
+pub fn uninstall(recipe: &Recipe) -> RunResult {
+    let platform = platform::detect();
+
+    let steps = recipe.uninstall_steps_for(&platform);
+
+    // Brew recipes: derive uninstall command from name if no explicit section
+    let derived;
+    let steps = if steps.is_empty() && recipe.meta.kind == super::schema::RecipeKind::Brew {
+        derived = match platform {
+            crate::platform::Platform::MacOS => format!("brew uninstall {}", recipe.meta.name),
+            crate::platform::Platform::Debian | crate::platform::Platform::Unknown => {
+                format!("sudo apt-get remove -y {}", recipe.meta.name)
+            }
+        };
+        vec![derived.as_str()]
+    } else if steps.is_empty() {
+        return RunResult::NotSupported;
+    } else {
+        steps
+    };
+
+    let ops = platform::current();
+    for step in steps {
+        if let Err(e) = ops.install(step) {
+            return RunResult::Failed(e.to_string());
+        }
+    }
+    RunResult::Installed
+}
+
+/// Uninstall a recipe and print status to terminal
+pub fn uninstall_with_output(recipe: &Recipe) -> bool {
+    let name = &recipe.meta.name;
+    printer::installing(name, "uninstalling...");
+    match uninstall(recipe) {
+        RunResult::Installed => { printer::ok(name, "uninstalled"); true }
+        RunResult::NotSupported => { printer::failed(name, "no uninstall command defined"); false }
+        RunResult::Failed(err) => { printer::failed(name, &err); false }
+        RunResult::AlreadyInstalled { .. } => unreachable!(),
+    }
 }
 
 /// Upgrade a recipe
@@ -67,10 +126,10 @@ pub fn upgrade(recipe: &Recipe) -> RunResult {
 }
 
 /// Install a recipe and print status to terminal
-pub fn install_with_output(recipe: &Recipe) -> bool {
+pub fn install_with_output(recipe: &Recipe, recipes_dir: &std::path::Path) -> bool {
     let name = &recipe.meta.name;
 
-    match install(recipe) {
+    match install(recipe, recipes_dir) {
         RunResult::AlreadyInstalled { version } => {
             let msg = version
                 .as_deref()
