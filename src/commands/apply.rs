@@ -1,26 +1,18 @@
 use anyhow::Result;
 
-use crate::config::qwert_yml;
+use crate::config::{qwert_yml, state_yml};
 use crate::recipe::{index, runner};
 use crate::ui::printer;
 
 pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
     let manifest_path = qwert_yml::manifest_path();
+    let state_path = state_yml::state_path();
+
     let config = qwert_yml::QwertConfig::load(&manifest_path)?;
+    let mut state = state_yml::QwertState::load(&state_path)?;
 
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
-
-    let tools: Vec<&str> = if let Some(t) = tool {
-        vec![t]
-    } else {
-        config.tools.iter().map(|s| s.as_str()).collect()
-    };
-
-    if tools.is_empty() {
-        printer::info("No tools declared. Run `qwert use <tool>` to add one.");
-        return Ok(());
-    }
 
     printer::h1("Applying machine setup...");
     printer::blank();
@@ -28,16 +20,56 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
     let mut done = 0;
     let mut failed = 0;
 
+    // Uninstall orphans (in state but no longer in manifest)
+    if tool.is_none() {
+        let orphans: Vec<String> = state.orphans(&config.tools)
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        for name in &orphans {
+            if dry_run {
+                printer::bullet(&format!("would uninstall: {}", name));
+                continue;
+            }
+            match index::find(name, &recipes_dir) {
+                Some(recipe) => {
+                    if runner::uninstall_with_output(&recipe) {
+                        state.mark_removed(name);
+                        done += 1;
+                    } else {
+                        failed += 1;
+                    }
+                }
+                None => {
+                    printer::failed(name, "recipe not found — remove manually");
+                    failed += 1;
+                }
+            }
+        }
+    }
+
+    // Install tools declared in manifest
+    let tools: Vec<&str> = if let Some(t) = tool {
+        vec![t]
+    } else {
+        config.tools.iter().map(|s| s.as_str()).collect()
+    };
+
+    if tools.is_empty() && state.orphans(&config.tools).is_empty() {
+        printer::info("No tools declared. Run `qwert use <tool>` to add one.");
+        return Ok(());
+    }
+
     for name in &tools {
         if dry_run {
             printer::bullet(&format!("would install: {}", name));
             continue;
         }
-
         match index::find(name, &recipes_dir) {
             Some(recipe) => {
-                printer::installing(name, "...");
-                if runner::install_with_output(&recipe) {
+                if runner::install_with_output(&recipe, &recipes_dir) {
+                    state.mark_installed(name);
                     done += 1;
                 } else {
                     failed += 1;
@@ -51,6 +83,7 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
     }
 
     if !dry_run {
+        state.save(&state_path)?;
         printer::summary(done, tools.len(), failed);
     }
 

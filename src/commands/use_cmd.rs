@@ -22,7 +22,7 @@ pub fn use_tool(name: &str, no_install: bool) -> Result<()> {
 
         match index::find(name, &recipes_dir) {
             Some(recipe) => {
-                runner::install_with_output(&recipe);
+                runner::install_with_output(&recipe, &recipes_dir);
             }
             None => {
                 printer::warning(&format!(

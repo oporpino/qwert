@@ -18,7 +18,7 @@ pub fn run(name: &str) -> Result<()> {
     printer::installing(name, "reinstalling...");
 
     // For now reinstall = upgrade (uninstall + install would require per-recipe logic)
-    runner::install_with_output(&recipe);
+    runner::install_with_output(&recipe, &recipes_dir);
 
     Ok(())
 }
