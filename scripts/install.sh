@@ -222,10 +222,11 @@ main() {
 
     printf "\n"
 
-    # Try downloading a pre-built binary; fall back to building from source
-    if ! install_binary 2>/dev/null; then
-        warn "no pre-built binary available for this platform"
+    # Build from source if cargo is available; otherwise download release binary
+    if command -v cargo &>/dev/null; then
         install_from_source
+    elif ! install_binary; then
+        die "no cargo found and no pre-built binary available for this platform"
     fi
 
     install_recipes
