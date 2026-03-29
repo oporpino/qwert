@@ -1,2 +1,0 @@
-#!/bin/bash
-. "$HOME/.qwert/v1/run" "$@"
