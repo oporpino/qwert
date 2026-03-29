@@ -1,0 +1,12 @@
+[meta]
+name = "homebrew"
+version = "1.0.0"
+description = "The missing package manager for macOS"
+type = "qwert"
+
+[check]
+command = "brew"
+version_flag = "--version"
+
+[install]
+macos = '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'

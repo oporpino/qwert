@@ -1,0 +1,21 @@
+[meta]
+name = "tmux"
+version = "1.0.0"
+description = "Terminal multiplexer"
+type = "brew"
+
+[check]
+command = "tmux"
+version_flag = "-V"
+
+[install]
+macos = "brew install tmux"
+debian = "sudo apt-get install -y tmux"
+
+[upgrade]
+macos = "brew upgrade tmux"
+debian = "sudo apt-get upgrade -y tmux"
+
+[config]
+dest = "~/.tmux.conf"
+symlink = true

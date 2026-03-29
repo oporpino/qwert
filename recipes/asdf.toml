@@ -1,0 +1,19 @@
+[meta]
+name = "asdf"
+version = "1.0.0"
+description = "Manage multiple runtime versions (Node, Ruby, Python, etc.)"
+type = "qwert"
+
+[check]
+command = "asdf"
+version_flag = "version"
+
+[install]
+macos = "brew install asdf"
+debian = [
+  "sudo apt-get install -y curl git",
+  "git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0",
+]
+
+[upgrade]
+macos = "brew upgrade asdf"

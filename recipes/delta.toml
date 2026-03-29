@@ -1,0 +1,17 @@
+[meta]
+name = "delta"
+version = "1.0.0"
+description = "A syntax-highlighting pager for git diffs"
+type = "brew"
+
+[check]
+command = "delta"
+version_flag = "--version"
+
+[install]
+macos = "brew install git-delta"
+debian = "sudo apt-get install -y git-delta"
+
+[upgrade]
+macos = "brew upgrade git-delta"
+debian = "sudo apt-get upgrade -y git-delta"

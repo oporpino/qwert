@@ -1,0 +1,17 @@
+[meta]
+name = "neovim"
+version = "1.0.0"
+description = "Hyperextensible Vim-based text editor"
+type = "brew"
+
+[check]
+command = "nvim"
+version_flag = "--version"
+
+[install]
+macos = "brew install neovim"
+debian = "sudo apt-get install -y neovim"
+
+[upgrade]
+macos = "brew upgrade neovim"
+debian = "sudo apt-get upgrade -y neovim"

@@ -1,0 +1,17 @@
+[package]
+name = "qwert"
+version = "0.2.0"
+edition = "2021"
+description = "Dev environment manager for macOS and Linux"
+
+[[bin]]
+name = "qwert"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+toml = "0.8"
+anyhow = "1"
+dirs = "5"

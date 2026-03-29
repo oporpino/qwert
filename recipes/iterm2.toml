@@ -1,0 +1,17 @@
+[meta]
+name = "iterm2"
+version = "1.0.0"
+description = "macOS terminal emulator"
+type = "qwert"
+
+[check]
+command = "open"
+
+[install]
+macos = "brew install --cask iterm2"
+
+[upgrade]
+macos = "brew upgrade --cask iterm2"
+
+[config]
+dest = "~/.config/qwert/iterm2"
