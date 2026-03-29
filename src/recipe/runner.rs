@@ -224,12 +224,8 @@ fn resolve_src(setup: &RecipeSetup, recipe_name: &str, config_dir: &Path) -> Pat
     }
 }
 
-/// Run the setup phase for a recipe.
-pub fn setup(recipe: &Recipe, config_dir: &Path) -> RunResult {
-    let Some(s) = &recipe.setup else {
-        return RunResult::NotSupported;
-    };
-
+/// Core setup logic for a RecipeSetup section (shared by recipe and inline setup).
+fn run_setup_section(name: &str, s: &RecipeSetup, config_dir: &Path) -> RunResult {
     let platform = platform::detect();
     let dest = PathBuf::from(qwert_yml::expand_tilde(&s.dest));
 
@@ -246,7 +242,7 @@ pub fn setup(recipe: &Recipe, config_dir: &Path) -> RunResult {
 
     // Symlink
     if s.symlink {
-        let src = resolve_src(s, &recipe.meta.name, config_dir);
+        let src = resolve_src(s, name, config_dir);
         if dest.is_symlink() && std::fs::read_link(&dest).ok().as_deref() == Some(src.as_path()) {
             return RunResult::AlreadyInstalled { version: None };
         }
@@ -260,13 +256,65 @@ pub fn setup(recipe: &Recipe, config_dir: &Path) -> RunResult {
     if dest.exists() {
         return RunResult::AlreadyInstalled { version: None };
     }
-    let src = resolve_src(s, &recipe.meta.name, config_dir);
+    let src = resolve_src(s, name, config_dir);
     if !src.exists() {
         return RunResult::Failed(format!("src not found: {}", src.display()));
     }
     match pfs::copy_file(&src, &dest) {
         Ok(_) => RunResult::Installed,
         Err(e) => RunResult::Failed(e.to_string()),
+    }
+}
+
+/// Run the setup phase for a recipe.
+pub fn setup(recipe: &Recipe, config_dir: &Path) -> RunResult {
+    let Some(s) = &recipe.setup else {
+        return RunResult::NotSupported;
+    };
+    run_setup_section(&recipe.meta.name, s, config_dir)
+}
+
+/// Run inline setup defined in qwert.yml.
+pub fn setup_inline(name: &str, inline: &qwert_yml::InlineSetup, config_dir: &Path) -> RunResult {
+    use crate::recipe::schema::{Commands, RecipeSetup, SetupUndo};
+
+    fn to_commands(s: &qwert_yml::StringOrList) -> Commands {
+        match s {
+            qwert_yml::StringOrList::One(cmd) => Commands::One(cmd.clone()),
+            qwert_yml::StringOrList::Many(cmds) => Commands::Many(cmds.clone()),
+        }
+    }
+
+    let recipe_setup = RecipeSetup {
+        src: inline.src.clone(),
+        dest: inline.dest.clone(),
+        symlink: inline.symlink,
+        macos: inline.macos.as_ref().map(to_commands),
+        debian: inline.debian.as_ref().map(to_commands),
+        undo: inline.undo.as_ref().map(|u| SetupUndo {
+            macos: u.macos.as_ref().map(to_commands),
+            debian: u.debian.as_ref().map(to_commands),
+        }),
+    };
+    run_setup_section(name, &recipe_setup, config_dir)
+}
+
+/// Run inline setup and print status to terminal. Returns true on success.
+pub fn setup_inline_with_output(name: &str, inline: &qwert_yml::InlineSetup, config_dir: &Path) -> bool {
+    match setup_inline(name, inline, config_dir) {
+        RunResult::NotSupported => true,
+        RunResult::AlreadyInstalled { .. } => {
+            printer::ok(name, "setup already done");
+            true
+        }
+        RunResult::Installed => {
+            printer::ok(name, "setup applied");
+            true
+        }
+        RunResult::Failed(err) => {
+            printer::failed(name, &format!("setup failed: {}", err));
+            false
+        }
     }
 }
 

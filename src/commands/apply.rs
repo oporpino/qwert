@@ -87,7 +87,11 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
         match index::find(name, &recipes_dir) {
             Some(recipe) => {
                 let installed = runner::install_with_output(&recipe, &recipes_dir);
-                runner::setup_with_output(&recipe, &config_dir);
+                if recipe.setup.is_some() {
+                    runner::setup_with_output(&recipe, &config_dir);
+                } else if let Some(inline) = config.setup_of(name) {
+                    runner::setup_inline_with_output(name, inline, &config_dir);
+                }
                 if installed {
                     let version = runner::installed_version(&recipe);
                     state.mark_installed(name, version.as_deref());
@@ -120,6 +124,10 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                             failed += 1;
                         }
                     }
+                }
+                // Run inline setup if defined
+                if let Some(inline) = config.setup_of(name) {
+                    runner::setup_inline_with_output(name, inline, &config_dir);
                 }
             }
         }

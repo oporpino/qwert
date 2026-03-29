@@ -20,13 +20,15 @@ pub fn run(name: &str) -> Result<()> {
 
     crate::commands::recipes_cmd::update_silent();
 
-    match index::find(name, &recipes_dir) {
-        Some(recipe) => {
-            runner::setup_with_output(&recipe, &config_dir);
-        }
-        None => {
-            printer::warning(&format!("no recipe found for '{}' — nothing to setup", name));
-        }
+    let recipe = index::find(name, &recipes_dir);
+    let recipe_has_setup = recipe.as_ref().map(|r| r.setup.is_some()).unwrap_or(false);
+
+    if recipe_has_setup {
+        runner::setup_with_output(recipe.as_ref().unwrap(), &config_dir);
+    } else if let Some(inline) = config.setup_of(name) {
+        runner::setup_inline_with_output(name, inline, &config_dir);
+    } else {
+        printer::warning(&format!("no setup defined for '{}' — nothing to setup", name));
     }
 
     Ok(())

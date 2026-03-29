@@ -30,7 +30,11 @@ pub fn use_tool(name: &str, version: Option<&str>, no_install: bool) -> Result<(
     match index::find(name, &recipes_dir) {
         Some(recipe) => {
             runner::install_with_output(&recipe, &recipes_dir);
-            runner::setup_with_output(&recipe, &config_dir);
+            if recipe.setup.is_some() {
+                runner::setup_with_output(&recipe, &config_dir);
+            } else if let Some(inline) = config.setup_of(name) {
+                runner::setup_inline_with_output(name, inline, &config_dir);
+            }
         }
         None => {
             // No recipe — install via platform default adapter
@@ -47,6 +51,10 @@ pub fn use_tool(name: &str, version: Option<&str>, no_install: bool) -> Result<(
                     }
                     None => printer::failed(name, "no package manager available on this platform"),
                 }
+            }
+            // Run inline setup if defined
+            if let Some(inline) = config.setup_of(name) {
+                runner::setup_inline_with_output(name, inline, &config_dir);
             }
         }
     }
