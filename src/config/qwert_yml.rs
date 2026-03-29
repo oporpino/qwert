@@ -49,6 +49,7 @@ pub enum StringOrList {
 }
 
 impl StringOrList {
+    #[allow(dead_code)]
     pub fn as_steps(&self) -> Vec<&str> {
         match self {
             StringOrList::One(s) => vec![s.as_str()],
@@ -123,6 +124,7 @@ impl QwertConfig {
     }
 
     /// Version spec for a tool ("latest" or semver). Returns "latest" if not declared.
+    #[allow(dead_code)]
     pub fn version_of(&self, name: &str) -> &str {
         match self.tools.get(name) {
             Some(ToolEntry::Simple(v)) => v.as_str(),
