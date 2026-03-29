@@ -60,6 +60,7 @@ detect_target() {
 
 ask_config_dir() {
     local default="${HOME}/.config/qwert"
+    local default_display="~/.config/qwert"
     local input
 
     printf "\n"
@@ -67,7 +68,7 @@ ask_config_dir() {
     dim "This is where qwert.yml and your dotfiles live."
     dim "Save this folder in a personal git repo to replicate your environment on any machine."
     printf "\n"
-    printf "  Location [%s]: " "${default}"
+    printf "  Location [%s]: " "${default_display}"
     read -r input
 
     if [ -z "${input}" ]; then
