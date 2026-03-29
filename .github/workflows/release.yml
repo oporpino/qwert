@@ -69,12 +69,13 @@ jobs:
         with:
           path: artifacts
 
-      - name: Rename binaries
+      - name: Flatten binaries
         run: |
+          mkdir dist
           for dir in artifacts/qwert-*/; do
             target="${dir#artifacts/qwert-}"
             target="${target%/}"
-            mv "${dir}qwert" "artifacts/qwert-${target}"
+            mv "${dir}qwert" "dist/qwert-${target}"
           done
 
       - name: Create release
@@ -83,7 +84,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           make_latest: true
-          files: artifacts/qwert-*
+          files: dist/qwert-*
 
       - name: Update latest tag
         run: |
