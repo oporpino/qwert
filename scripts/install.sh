@@ -9,6 +9,7 @@ API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 QWERT_HOME="${HOME}/.qwert"
 QWERT_BIN="${QWERT_HOME}/bin"
 QWERT_RECIPES="${QWERT_HOME}/recipes"
+QWERT_VERSION="${QWERT_VERSION:-}"  # optional: pin a specific tag (e.g. v0.2.1)
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -124,11 +125,15 @@ install_binary() {
     target="$(detect_target)"
     info "Platform: ${target}"
 
-    # Fetch latest release version from GitHub API
-    info "Fetching latest release..."
-    version="$(curl -fsSL "${API}/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/')"
-    [ -n "${version}" ] || die "could not determine latest release version"
-    info "Latest version: ${version}"
+    if [ -n "${QWERT_VERSION}" ]; then
+        version="${QWERT_VERSION}"
+        info "Version: ${version} (pinned)"
+    else
+        info "Fetching latest release..."
+        version="$(curl -fsSL "${API}/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/')"
+        [ -n "${version}" ] || die "could not determine latest release version"
+        info "Version: ${version}"
+    fi
 
     download_url="${REPO}/releases/download/${version}/qwert-${target}"
     tmp="$(mktemp)"
@@ -140,7 +145,9 @@ install_binary() {
     mkdir -p "${QWERT_BIN}"
     mv "${tmp}" "${QWERT_BIN}/qwert"
     chmod +x "${QWERT_BIN}/qwert"
-    ok "Binary installed → ${QWERT_BIN}/qwert"
+
+    echo "${version}" > "${QWERT_HOME}/version"
+    ok "Binary installed → ${QWERT_BIN}/qwert (${version})"
 }
 
 # ---------------------------------------------------------------------------
@@ -246,6 +253,19 @@ configure_shell() {
 # ---------------------------------------------------------------------------
 
 main() {
+    # Parse args
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --version)
+                QWERT_VERSION="$2"
+                shift 2
+                ;;
+            *)
+                die "unknown option: $1"
+                ;;
+        esac
+    done
+
     printf "\n\033[1mqwert installer\033[0m\n"
     printf "%s\n\n" "───────────────"
 

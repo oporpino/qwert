@@ -50,7 +50,9 @@ fn main() {
         Command::Reinstall { name } => commands::reinstall::run(&name),
 
         Command::Version => {
-            println!("qwert {}", env!("CARGO_PKG_VERSION"));
+            let version = commands::self_cmd::installed_version()
+                .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
+            println!("qwert {}", version);
             Ok(())
         }
 
