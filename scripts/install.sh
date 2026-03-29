@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_OWNER="gporpino"
+REPO_OWNER="oporpino"
 REPO_NAME="qwert"
 REPO="https://github.com/${REPO_OWNER}/${REPO_NAME}"
 API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
