@@ -30,13 +30,16 @@ fn pkg_name(recipe: &Recipe) -> &str {
     recipe.meta.pkg.as_deref().unwrap_or(&recipe.meta.name)
 }
 
-/// Execute a single command via the platform ops, returning RunResult on failure.
-fn run_cmd(cmd: &str) -> Result<(), String> {
+fn run_install(cmd: &str) -> Result<(), String> {
     platform::current().install(cmd).map_err(|e| e.to_string())
 }
 
-fn run_upgrade_cmd(cmd: &str) -> Result<(), String> {
+fn run_upgrade(cmd: &str) -> Result<(), String> {
     platform::current().upgrade(cmd).map_err(|e| e.to_string())
+}
+
+fn version_msg(prefix: &str, version: Option<String>) -> String {
+    version.map(|v| format!("{} ({})", prefix, v)).unwrap_or_else(|| prefix.to_string())
 }
 
 /// Install a recipe on the current platform, resolving dependencies first.
@@ -68,7 +71,7 @@ pub fn install(recipe: &Recipe, recipes_dir: &std::path::Path) -> RunResult {
     if let Some(adapter) = crate::adapters::for_kind(&recipe.meta.kind) {
         if adapter.available() {
             let cmd = adapter.install_cmd(pkg_name(recipe));
-            return match run_cmd(&cmd) {
+            return match run_install(&cmd) {
                 Ok(_) => RunResult::Installed,
                 Err(e) => RunResult::Failed(e),
             };
@@ -82,7 +85,7 @@ pub fn install(recipe: &Recipe, recipes_dir: &std::path::Path) -> RunResult {
     }
 
     for step in steps {
-        if let Err(e) = run_cmd(step) {
+        if let Err(e) = run_install(step) {
             return RunResult::Failed(e);
         }
     }
@@ -97,7 +100,7 @@ pub fn uninstall(recipe: &Recipe) -> RunResult {
     if let Some(adapter) = crate::adapters::for_kind(&recipe.meta.kind) {
         if adapter.available() {
             let cmd = adapter.uninstall_cmd(pkg_name(recipe));
-            return match run_cmd(&cmd) {
+            return match run_install(&cmd) {
                 Ok(_) => RunResult::Installed,
                 Err(e) => RunResult::Failed(e),
             };
@@ -111,7 +114,7 @@ pub fn uninstall(recipe: &Recipe) -> RunResult {
     }
 
     for step in steps {
-        if let Err(e) = run_cmd(step) {
+        if let Err(e) = run_install(step) {
             return RunResult::Failed(e);
         }
     }
@@ -138,7 +141,7 @@ pub fn upgrade(recipe: &Recipe) -> RunResult {
     if let Some(adapter) = crate::adapters::for_kind(&recipe.meta.kind) {
         if adapter.available() {
             let cmd = adapter.upgrade_cmd(pkg_name(recipe));
-            return match run_upgrade_cmd(&cmd) {
+            return match run_upgrade(&cmd) {
                 Ok(_) => RunResult::Installed,
                 Err(e) => RunResult::Failed(e),
             };
@@ -152,7 +155,7 @@ pub fn upgrade(recipe: &Recipe) -> RunResult {
     }
 
     for step in steps {
-        if let Err(e) = run_upgrade_cmd(step) {
+        if let Err(e) = run_upgrade(step) {
             return RunResult::Failed(e);
         }
     }
@@ -165,18 +168,12 @@ pub fn install_with_output(recipe: &Recipe, recipes_dir: &std::path::Path) -> bo
 
     match install(recipe, recipes_dir) {
         RunResult::AlreadyInstalled { version } => {
-            let msg = version
-                .as_deref()
-                .map(|v| format!("already installed ({})", v))
-                .unwrap_or_else(|| "already installed".to_string());
-            printer::ok(name, &msg);
+            printer::ok(name, &version_msg("already installed", version));
             true
         }
         RunResult::Installed => {
-            let version = installed_version(recipe);
-            let msg = version
-                .map(|v| format!("installed ({})", v))
-                .unwrap_or_else(|| "installed".to_string());
+            let tag = printer::kind_tag(&recipe.meta.kind.to_string());
+            let msg = format!("{}  {}", version_msg("installed", installed_version(recipe)), tag);
             printer::ok(name, &msg);
             true
         }
@@ -194,14 +191,12 @@ pub fn install_with_output(recipe: &Recipe, recipes_dir: &std::path::Path) -> bo
 /// Check and print status of a recipe
 pub fn status_with_output(recipe: &Recipe) {
     let name = &recipe.meta.name;
+    let tag = printer::kind_tag(&recipe.meta.kind.to_string());
 
     if is_installed(recipe) {
-        let version = installed_version(recipe);
-        let msg = version
-            .map(|v| format!("installed ({})", v))
-            .unwrap_or_else(|| "installed".to_string());
+        let msg = format!("{}  {}", version_msg("installed", installed_version(recipe)), tag);
         printer::ok(name, &msg);
     } else {
-        printer::failed(name, "not installed");
+        printer::failed(name, &format!("not installed  {}", tag));
     }
 }

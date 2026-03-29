@@ -110,6 +110,17 @@ pub fn summary(done: usize, total: usize, failed: usize) {
     println!();
 }
 
+// --- Kind tag ---
+
+/// "[brew]" colored by adapter type
+pub fn kind_tag(kind: &str) -> String {
+    match kind {
+        "brew" => colorize(BRIGHT_BLUE, &format!("[{}]", kind)),
+        "apt" | "pacman" => colorize(BRIGHT_YELLOW, &format!("[{}]", kind)),
+        _ => colorize(DIM, &format!("[{}]", kind)),
+    }
+}
+
 // --- Search result ---
 
 /// "  neovim    [brew]    Neovim text editor    v0.10.2"
