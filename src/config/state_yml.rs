@@ -141,11 +141,11 @@ mod tests {
         // act
         state.save(&path).unwrap();
         let loaded = QwertState::load(&path).unwrap();
-        std::fs::remove_file(&path).ok();
         // assert
         assert!(loaded.installed.contains(&"tmux".to_string()));
         assert!(loaded.installed.contains(&"delta".to_string()));
         assert_eq!(loaded.installed.len(), 2);
+        std::fs::remove_file(&path).ok();
     }
 
     #[test]

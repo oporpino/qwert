@@ -162,16 +162,20 @@ mod tests {
         // arrange
         let mut config = QwertConfig::default();
         config.add_tool("tmux");
-        // act / assert
-        assert!(config.has_tool("tmux"));
+        // act
+        let result = config.has_tool("tmux");
+        // assert
+        assert!(result);
     }
 
     #[test]
     fn has_tool_returns_false_when_absent() {
         // arrange
         let config = QwertConfig::default();
-        // act / assert
-        assert!(!config.has_tool("tmux"));
+        // act
+        let result = config.has_tool("tmux");
+        // assert
+        assert!(!result);
     }
 
     #[test]
@@ -267,8 +271,10 @@ mod tests {
 
     #[test]
     fn expand_tilde_leaves_absolute_path_unchanged() {
-        // arrange / act
-        let result = expand_tilde("/etc/profile");
+        // arrange
+        let path = "/etc/profile";
+        // act
+        let result = expand_tilde(path);
         // assert
         assert_eq!(result, "/etc/profile");
     }

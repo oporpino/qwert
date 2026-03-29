@@ -71,9 +71,9 @@ macos = "brew install tmux"
         fs::write(&path, MINIMAL_RECIPE).unwrap();
         // act
         let recipe = load_recipe(&path).unwrap();
-        fs::remove_file(&path).ok();
         // assert
         assert_eq!(recipe.meta.name, "tmux");
+        fs::remove_file(&path).ok();
         assert_eq!(recipe.meta.version, "1.0.0");
     }
 
@@ -94,9 +94,9 @@ macos = "brew install tmux"
         fs::write(&path, "this is not valid toml [[[").unwrap();
         // act
         let result = load_recipe(&path);
-        fs::remove_file(&path).ok();
         // assert
         assert!(result.is_err());
+        fs::remove_file(&path).ok();
     }
 
     #[test]
@@ -107,10 +107,10 @@ macos = "brew install tmux"
         fs::write(dir.join("tmux.toml"), MINIMAL_RECIPE).unwrap();
         // act
         let result = find("tmux", &dir);
-        fs::remove_dir_all(&dir).ok();
         // assert
         assert!(result.is_some());
         assert_eq!(result.unwrap().meta.name, "tmux");
+        fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
@@ -120,9 +120,9 @@ macos = "brew install tmux"
         fs::create_dir_all(&dir).unwrap();
         // act
         let result = find("neovim", &dir);
-        fs::remove_dir_all(&dir).ok();
         // assert
         assert!(result.is_none());
+        fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
@@ -138,11 +138,11 @@ macos = "brew install tmux"
         fs::write(dir.join("neovim.toml"), neovim).unwrap();
         // act
         let recipes = load_all(&dir);
-        fs::remove_dir_all(&dir).ok();
         // assert
         assert_eq!(recipes.len(), 2);
         assert_eq!(recipes[0].meta.name, "neovim");
         assert_eq!(recipes[1].meta.name, "tmux");
+        fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
