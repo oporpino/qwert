@@ -121,6 +121,14 @@ pub fn kind_tag(kind: &str) -> String {
     }
 }
 
+/// "[brew]   " — kind tag padded to fixed visible width for column alignment
+pub fn kind_tag_col(kind: &str) -> String {
+    let tag = kind_tag(kind);
+    let visible_len = kind.len() + 2; // "[" + kind + "]"
+    let padding = " ".repeat(9usize.saturating_sub(visible_len));
+    format!("{}{}", tag, padding)
+}
+
 // --- Search result ---
 
 /// "  neovim    [brew]    Neovim text editor    v0.10.2"

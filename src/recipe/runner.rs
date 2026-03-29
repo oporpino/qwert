@@ -377,7 +377,7 @@ pub fn setup_status_label(setup: &RecipeSetup, config_dir: &Path, recipe_name: &
 /// Check and print install + setup status in one line.
 pub fn status_with_setup_output(recipe: &Recipe, config_dir: &Path) {
     let name = &recipe.meta.name;
-    let tag = printer::kind_tag(&recipe.meta.kind.to_string());
+    let tag = printer::kind_tag_col(&recipe.meta.kind.to_string());
 
     let install_ok = is_installed(recipe);
     let install_str = version_msg(
@@ -389,7 +389,8 @@ pub fn status_with_setup_output(recipe: &Recipe, config_dir: &Path) {
         .map(|s| setup_status_label(s, config_dir, name))
         .unwrap_or("—");
 
-    let msg = format!("{}  {}  setup: {}", install_str, tag, setup_str);
+    // Fixed-width columns: install (28) | kind (9) | setup
+    let msg = format!("{:<28}{}  {}", install_str, tag, setup_str);
 
     if install_ok {
         printer::ok(name, &msg);
