@@ -201,6 +201,11 @@ configure_shell() {
         init_block="${init_block}$(printf 'export QWERT_CONFIG_DIR="%s"\n' "${QWERT_CONFIG_DIR}")"
     fi
 
+    # Completions
+    local shell_name
+    shell_name="$(basename "${SHELL:-bash}")"
+    init_block="${init_block}$(printf 'eval "$(qwert completions %s)"\n' "${shell_name}")"
+
     init_block="${init_block}$(printf 'eval "$(qwert hook init)"\n')"
 
     # Prepend init block to rc file
