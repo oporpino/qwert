@@ -98,39 +98,28 @@ pub struct RecipeConfig {
     pub symlink: bool,
 }
 
+fn platform_cmds<'a>(platform: &crate::platform::Platform, macos: Option<&'a Commands>, debian: Option<&'a Commands>) -> Vec<&'a str> {
+    let cmds = match platform {
+        crate::platform::Platform::MacOS => macos,
+        crate::platform::Platform::Debian | crate::platform::Platform::Unknown => debian,
+    };
+    cmds.map(|c| c.as_steps()).unwrap_or_default()
+}
+
 impl Recipe {
     pub fn install_steps_for(&self, platform: &crate::platform::Platform) -> Vec<&str> {
-        let Some(install) = &self.install else { return vec![] };
-        let cmds = match platform {
-            crate::platform::Platform::MacOS => install.macos.as_ref(),
-            crate::platform::Platform::Debian | crate::platform::Platform::Unknown => install.debian.as_ref(),
-        };
-        cmds.map(|c| c.as_steps()).unwrap_or_default()
+        let Some(s) = &self.install else { return vec![] };
+        platform_cmds(platform, s.macos.as_ref(), s.debian.as_ref())
     }
 
     pub fn uninstall_steps_for(&self, platform: &crate::platform::Platform) -> Vec<&str> {
-        // For brew recipes, derive uninstall from name if no explicit section
-        if self.uninstall.is_none() && self.meta.kind == RecipeKind::Brew {
-            return match platform {
-                crate::platform::Platform::MacOS => vec![],  // returned as empty; caller uses brew uninstall
-                _ => vec![],
-            };
-        }
-        let Some(uninstall) = &self.uninstall else { return vec![] };
-        let cmds = match platform {
-            crate::platform::Platform::MacOS => uninstall.macos.as_ref(),
-            crate::platform::Platform::Debian | crate::platform::Platform::Unknown => uninstall.debian.as_ref(),
-        };
-        cmds.map(|c| c.as_steps()).unwrap_or_default()
+        let Some(s) = &self.uninstall else { return vec![] };
+        platform_cmds(platform, s.macos.as_ref(), s.debian.as_ref())
     }
 
     pub fn upgrade_steps_for(&self, platform: &crate::platform::Platform) -> Vec<&str> {
-        let Some(upgrade) = &self.upgrade else { return vec![] };
-        let cmds = match platform {
-            crate::platform::Platform::MacOS => upgrade.macos.as_ref(),
-            crate::platform::Platform::Debian | crate::platform::Platform::Unknown => upgrade.debian.as_ref(),
-        };
-        cmds.map(|c| c.as_steps()).unwrap_or_default()
+        let Some(s) = &self.upgrade else { return vec![] };
+        platform_cmds(platform, s.macos.as_ref(), s.debian.as_ref())
     }
 }
 
@@ -226,18 +215,32 @@ mod tests {
 
     #[test]
     fn recipe_kind_display_brew() {
-        // arrange / act
+        // arrange
         let kind = RecipeKind::Brew;
+        // act
+        let result = kind.to_string();
         // assert
-        assert_eq!(kind.to_string(), "brew");
+        assert_eq!(result, "brew");
     }
 
     #[test]
     fn recipe_kind_display_qwert() {
-        // arrange / act
+        // arrange
         let kind = RecipeKind::Qwert;
+        // act
+        let result = kind.to_string();
         // assert
-        assert_eq!(kind.to_string(), "qwert");
+        assert_eq!(result, "qwert");
+    }
+
+    #[test]
+    fn uninstall_steps_empty_when_no_section_and_brew_kind() {
+        // arrange — brew recipe with no explicit uninstall section (adapter handles it)
+        let recipe = make_recipe(None, None);
+        // act
+        let steps = recipe.uninstall_steps_for(&Platform::MacOS);
+        // assert
+        assert!(steps.is_empty());
     }
 
     #[test]
