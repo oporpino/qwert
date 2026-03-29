@@ -50,6 +50,8 @@ fn main() {
             Ok(())
         }
 
+        Command::Hook { phase } => commands::hook::run(&phase),
+
         Command::Info { name } => commands::info::run(&name),
 
         Command::Doctor => commands::doctor::run(),

@@ -72,6 +72,12 @@ pub enum Command {
         name: String,
     },
 
+    /// Output shell hook for init or end phase (eval in .zshrc)
+    Hook {
+        /// Phase: init or end
+        phase: String,
+    },
+
     /// Show help
     Help,
 
