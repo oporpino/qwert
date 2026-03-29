@@ -95,20 +95,26 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                 }
             }
             None => {
-                match crate::adapters::default_adapter() {
-                    Some(adapter) => {
-                        if crate::platform::run_cmd(&adapter.install_cmd(name)).is_ok() {
-                            state.mark_installed(name);
-                            printer::ok(name, "installed");
-                            done += 1;
-                        } else {
-                            printer::failed(name, "install failed");
+                if crate::platform::which(name) {
+                    state.mark_installed(name);
+                    printer::ok(name, "already installed");
+                    done += 1;
+                } else {
+                    match crate::adapters::default_adapter() {
+                        Some(adapter) => {
+                            if crate::platform::run_cmd(&adapter.install_cmd(name)).is_ok() {
+                                state.mark_installed(name);
+                                printer::ok(name, "installed");
+                                done += 1;
+                            } else {
+                                printer::failed(name, "install failed");
+                                failed += 1;
+                            }
+                        }
+                        None => {
+                            printer::failed(name, "no recipe and no package manager available");
                             failed += 1;
                         }
-                    }
-                    None => {
-                        printer::failed(name, "no recipe and no package manager available");
-                        failed += 1;
                     }
                 }
             }
