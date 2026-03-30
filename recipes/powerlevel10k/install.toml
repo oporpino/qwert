@@ -3,6 +3,7 @@ name = "powerlevel10k"
 version = "1.0.0"
 description = "Zsh theme with instant prompt and detailed git information"
 type = "qwert"
+depends = ["ohmyzsh"]
 
 # No [check] — p10k is a shell function loaded by oh-my-zsh; install script is idempotent
 
