@@ -35,6 +35,10 @@ pub fn install() -> Result<()> {
     let installer = platform::installer();
     let bin_path = installer.binary_path();
 
+    // Create user dir (~/.qwert/) if it doesn't exist
+    let user_dir = crate::config::qwert_yml::config_dir();
+    std::fs::create_dir_all(&user_dir)?;
+
     anyhow::ensure!(
         bin_path.exists(),
         "binary not found at {} — place the binary there first",
