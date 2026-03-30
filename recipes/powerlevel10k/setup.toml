@@ -1,7 +1,15 @@
-src = "~/.config/qwert/p10k.zsh"
-dest = "~/.p10k.zsh"
-symlink = true
+dest = "~/.config/qwert/zsh/powerlevel10k.sh"
+
+# Creates hook fragment + symlinks ~/.p10k.zsh from your config dir.
+# Add ~/.config/qwert/zsh/powerlevel10k.sh to hooks.end in qwert.yml.
+macos = [
+  "mkdir -p ~/.config/qwert/zsh",
+  "printf 'source \"$(brew --prefix)/share/powerlevel10k/powerlevel10k.zsh-theme\"\\n[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh\\n' > ~/.config/qwert/zsh/powerlevel10k.sh",
+  "ln -sf ~/.config/qwert/p10k.zsh ~/.p10k.zsh"
+]
 
 [undo]
-macos = "rm -f ~/.p10k.zsh"
-debian = "rm -f ~/.p10k.zsh"
+macos = [
+  "rm -f ~/.config/qwert/zsh/powerlevel10k.sh",
+  "rm -f ~/.p10k.zsh"
+]
