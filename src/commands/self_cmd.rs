@@ -3,8 +3,8 @@ use std::process::Command;
 
 use crate::ui::printer;
 
-const REPO: &str = "https://github.com/gporpino/qwert";
-const API: &str = "https://api.github.com/repos/gporpino/qwert";
+const REPO: &str = "https://github.com/oporpino/qwert";
+const API: &str = "https://api.github.com/repos/oporpino/qwert";
 
 pub fn upgrade() -> Result<()> {
     printer::h1("Upgrading qwert...");
@@ -35,7 +35,8 @@ pub fn reinstall() -> Result<()> {
     printer::h1("Reinstalling qwert...");
     printer::blank();
 
-    let version = fetch_latest_version()?;
+    let version = installed_version()
+        .ok_or_else(|| anyhow::anyhow!("could not determine installed version — run 'qwert self upgrade' instead"))?;
     printer::info(&format!("version: {}", version));
     printer::blank();
 
