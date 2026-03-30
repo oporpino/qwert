@@ -83,6 +83,7 @@ main() {
     info "Downloading binary..."
     curl -fsSL --progress-bar "${url}" -o "${tmp}" || die "download failed: ${url}"
 
+    mkdir -p "${HOME}/.qwert"
     sudo mkdir -p "${QWERT_BIN}"
     sudo mv "${tmp}" "${QWERT_BIN}/qwert"
     sudo chmod +x "${QWERT_BIN}/qwert"
