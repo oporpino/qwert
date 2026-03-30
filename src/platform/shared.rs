@@ -143,9 +143,16 @@ pub fn install_binary_sudo(src: &Path, dest: &Path) -> Result<()> {
             .status()
             .context("sudo mkdir failed")?;
     }
-    Command::new("sudo")
+    let status = Command::new("sudo")
         .args(["cp", &src.to_string_lossy(), &dest.to_string_lossy()])
         .status()
         .context("failed to install binary (requires sudo)")?;
+    if !status.success() {
+        anyhow::bail!("sudo cp failed — permission denied");
+    }
+    Command::new("sudo")
+        .args(["chmod", "755", &dest.to_string_lossy()])
+        .status()
+        .context("sudo chmod failed")?;
     Ok(())
 }

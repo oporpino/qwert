@@ -60,8 +60,9 @@ pub fn install() -> Result<()> {
 
     let data_dir = platform::data_dir();
     std::fs::create_dir_all(&data_dir)?;
-    std::fs::write(data_dir.join("version"), env!("CARGO_PKG_VERSION"))?;
-    printer::ok("version", env!("CARGO_PKG_VERSION"));
+    let version = format!("v{}", env!("CARGO_PKG_VERSION"));
+    std::fs::write(data_dir.join("version"), &version)?;
+    printer::ok("version", &version);
 
     printer::blank();
     printer::info(&format!("restart your shell or run: source {}", rc.display()));
@@ -95,7 +96,7 @@ fn download_and_install(version: &str) -> Result<()> {
     let target = shared::detect_target()?;
     let installer = platform::installer();
 
-    printer::info(&format!("downloading v{}", version));
+    printer::info(&format!("downloading {}", version));
     let tmp = shared::download_binary(version, &target)?;
     shared::install_binary_sudo(&tmp, &installer.binary_path())?;
     std::fs::remove_file(&tmp).ok();
