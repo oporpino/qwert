@@ -1,6 +1,6 @@
-dest = "~/.config/qwert/iterm2"
+dest = "~/.qwert/iterm2"
 macos = [
-  "defaults write com.googlecode.iterm2 PrefsCustomFolder -string ~/.config/qwert/iterm2",
+  "defaults write com.googlecode.iterm2 PrefsCustomFolder -string ~/.qwert/iterm2",
   "defaults write com.googlecode.iterm2 LoadPrefsFromCustomFolder -bool true",
 ]
 

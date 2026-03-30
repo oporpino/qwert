@@ -1,2 +1,3 @@
+src = "~/.qwert/lvim/config.lua"
 dest = "~/.config/lvim/config.lua"
 symlink = true

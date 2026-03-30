@@ -1,11 +1,11 @@
 dest = "~/.qwert/hooks/init/powerlevel10k.sh"
 
 # Writes shell fragment to ~/.qwert/hooks/init/ — sourced automatically by qwert hook init.
-# Also symlinks ~/.p10k.zsh from your config dir (~/.config/qwert/p10k.zsh).
+# Also symlinks ~/.p10k.zsh from your config dir (~/.qwert/p10k.zsh).
 macos = [
   "mkdir -p ~/.qwert/hooks/init",
   "printf 'source \"$(brew --prefix)/share/powerlevel10k/powerlevel10k.zsh-theme\"\\n[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh\\n' > ~/.qwert/hooks/init/powerlevel10k.sh",
-  "ln -sf ~/.config/qwert/p10k.zsh ~/.p10k.zsh"
+  "ln -sf ~/.qwert/p10k.zsh ~/.p10k.zsh"
 ]
 
 [undo]
