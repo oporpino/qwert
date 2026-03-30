@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -161,9 +160,24 @@ pub fn install_binary_sudo(src: &Path, dest: &Path) -> Result<()> {
     // Copy to a temp file beside the destination, then move atomically
     // to avoid "text file busy" when replacing a running binary
     let tmp = parent.join(".qwert-new");
-    std::fs::copy(src, &tmp).context("failed to copy binary")?;
-    std::fs::set_permissions(&tmp, std::os::unix::fs::PermissionsExt::from_mode(0o755))?;
-    std::fs::rename(&tmp, dest).context("failed to replace binary")?;
+    let status = Command::new("sudo")
+        .args(["cp", &src.to_string_lossy(), &tmp.to_string_lossy()])
+        .status()
+        .context("failed to copy binary")?;
+    if !status.success() {
+        anyhow::bail!("failed to copy binary");
+    }
+    Command::new("sudo")
+        .args(["chmod", "755", &tmp.to_string_lossy()])
+        .status()
+        .context("failed to chmod binary")?;
+    let status = Command::new("sudo")
+        .args(["mv", &tmp.to_string_lossy(), &dest.to_string_lossy()])
+        .status()
+        .context("failed to replace binary")?;
+    if !status.success() {
+        anyhow::bail!("failed to replace binary");
+    }
 
     Ok(())
 }
