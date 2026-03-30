@@ -60,6 +60,12 @@ pub fn install() -> Result<()> {
 
     let data_dir = platform::data_dir();
     std::fs::create_dir_all(&data_dir)?;
+    // Ensure data dir is owned by the current user (install runs under sudo)
+    if let Ok(user) = std::env::var("SUDO_USER").or_else(|_| std::env::var("USER")) {
+        let _ = std::process::Command::new("chown")
+            .args(["-R", &user, &data_dir.to_string_lossy()])
+            .status();
+    }
     let version = format!("v{}", env!("CARGO_PKG_VERSION"));
     std::fs::write(data_dir.join("version"), &version)?;
     printer::ok("version", &version);
