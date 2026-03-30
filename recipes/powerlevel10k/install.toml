@@ -1,0 +1,30 @@
+[meta]
+name = "powerlevel10k"
+version = "1.0.0"
+description = "Zsh theme with instant prompt and detailed git information"
+type = "qwert"
+
+# No [check] — p10k is a shell function loaded by oh-my-zsh; install script is idempotent
+
+[install]
+macos = "[ -d \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\" ] || git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\""
+debian = "[ -d \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\" ] || git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\""
+
+[upgrade]
+macos = "git -C \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\" pull"
+debian = "git -C \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\" pull"
+
+[uninstall]
+macos = "rm -rf \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\""
+debian = "rm -rf \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\""
+
+# Add to hook init (~/.config/qwert/zsh/init.sh) — must be before source oh-my-zsh.sh:
+#   if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+#     source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+#   fi
+#
+# Add to ZSH_THEME in your init file:
+#   ZSH_THEME="powerlevel10k/powerlevel10k"
+#
+# After theme loads, source your config:
+#   [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh

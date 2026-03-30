@@ -1,0 +1,7 @@
+src = "~/.config/qwert/p10k.zsh"
+dest = "~/.p10k.zsh"
+symlink = true
+
+[undo]
+macos = "rm -f ~/.p10k.zsh"
+debian = "rm -f ~/.p10k.zsh"

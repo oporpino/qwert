@@ -1,0 +1,25 @@
+[meta]
+name = "ohmyzsh"
+version = "1.0.0"
+description = "Framework for managing your zsh configuration"
+type = "qwert"
+
+# No [check] — omz is a shell function, not a binary; install script is idempotent
+
+[install]
+macos = "[ -d \"$HOME/.oh-my-zsh\" ] || RUNZSH=no CHSH=no sh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\""
+debian = "[ -d \"$HOME/.oh-my-zsh\" ] || RUNZSH=no CHSH=no sh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\""
+
+[upgrade]
+macos = "$HOME/.oh-my-zsh/bin/omz update"
+debian = "$HOME/.oh-my-zsh/bin/omz update"
+
+[uninstall]
+macos = "[ -f \"$HOME/.oh-my-zsh/tools/uninstall.sh\" ] && bash \"$HOME/.oh-my-zsh/tools/uninstall.sh\" || true"
+debian = "[ -f \"$HOME/.oh-my-zsh/tools/uninstall.sh\" ] && bash \"$HOME/.oh-my-zsh/tools/uninstall.sh\" || true"
+
+# Shell integration goes in your hook init file (~/.config/qwert/zsh/init.sh):
+#   export ZSH="$HOME/.oh-my-zsh"
+#   ZSH_THEME="powerlevel10k/powerlevel10k"
+#   plugins=(git asdf)
+#   source $ZSH/oh-my-zsh.sh
