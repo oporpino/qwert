@@ -2,10 +2,19 @@
 name = "powerlevel10k"
 version = "1.0.0"
 description = "Zsh theme with instant prompt and detailed git information"
-type = "brew"
-pkg = "romkatv/powerlevel10k/powerlevel10k"
+type = "qwert"
 depends = ["ohmyzsh"]
 
-[check]
-command = "p10k"
-version_flag = "version"
+# No [check] — p10k is a shell function, not a binary; install is idempotent via brew list guard
+
+[install]
+macos = "brew list powerlevel10k &>/dev/null || brew install romkatv/powerlevel10k/powerlevel10k"
+debian = "[ -d \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\" ] || git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\""
+
+[upgrade]
+macos = "brew upgrade powerlevel10k"
+debian = "git -C \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\" pull"
+
+[uninstall]
+macos = "brew uninstall powerlevel10k"
+debian = "rm -rf \"${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k\""
