@@ -5,7 +5,7 @@ use crate::recipe::index::cache_dir;
 use crate::ui::printer;
 
 const TARBALL_URL: &str =
-    "https://github.com/gporpino/qwert/archive/refs/heads/main.tar.gz";
+    "https://github.com/oporpino/qwert/archive/refs/heads/main.tar.gz";
 
 pub fn update() -> Result<()> {
     printer::h1("Updating recipes...");
