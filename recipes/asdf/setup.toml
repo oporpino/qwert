@@ -1,14 +1,11 @@
-# macOS: oh-my-zsh asdf plugin handles shell integration (add asdf to plugins list)
-# Debian: writes a shell init fragment — add it to hooks.init in qwert.yml
+dest = "~/.qwert/hooks/init/asdf.sh"
 
+# macOS: oh-my-zsh asdf plugin handles shell integration (add asdf to plugins list).
+# Debian: writes shell fragment to ~/.qwert/hooks/init/ — sourced automatically by qwert hook init.
 debian = [
-  "mkdir -p ~/.config/qwert/zsh",
-  "printf '. \"$HOME/.asdf/asdf.sh\"\\n. \"$HOME/.asdf/completions/asdf.bash\"\\n' > ~/.config/qwert/zsh/asdf.sh"
+  "mkdir -p ~/.qwert/hooks/init",
+  "printf '. \"$HOME/.asdf/asdf.sh\"\\n. \"$HOME/.asdf/completions/asdf.bash\"\\n' > ~/.qwert/hooks/init/asdf.sh"
 ]
 
 [undo]
-debian = "rm -f ~/.config/qwert/zsh/asdf.sh"
-
-# env vars that depend on installed runtimes go in hook end (~/.config/qwert/zsh/end.sh):
-#   export JAVA_HOME=$(asdf where java 2>/dev/null)
-#   export DOTNET_ROOT=$(asdf where dotnet 2>/dev/null)
+debian = "rm -f ~/.qwert/hooks/init/asdf.sh"
