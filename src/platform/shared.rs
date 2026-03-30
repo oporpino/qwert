@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -135,42 +136,34 @@ pub fn create_symlink_sudo(target: &Path, link: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Install a binary to a system path using sudo.
-/// Copies to a temp file beside the destination first, then moves atomically
-/// to avoid "text file busy" errors when replacing a running binary.
+/// Install a binary to a system path.
+/// Uses sudo only to create the parent directory if needed.
+/// The binary itself is owned by the current user, so no sudo needed to replace it.
 pub fn install_binary_sudo(src: &Path, dest: &Path) -> Result<()> {
     let parent = dest.parent().context("binary path has no parent")?;
 
-    let status = Command::new("sudo")
-        .args(["mkdir", "-p", &parent.to_string_lossy()])
-        .status()
-        .context("sudo mkdir failed")?;
-    if !status.success() {
-        anyhow::bail!("sudo mkdir failed");
+    if !parent.exists() {
+        let status = Command::new("sudo")
+            .args(["mkdir", "-p", &parent.to_string_lossy()])
+            .status()
+            .context("sudo mkdir failed")?;
+        if !status.success() {
+            anyhow::bail!("sudo mkdir failed");
+        }
+        // Give ownership to the current user so future upgrades don't need sudo
+        let user = std::env::var("USER").unwrap_or_default();
+        Command::new("sudo")
+            .args(["chown", &user, &parent.to_string_lossy()])
+            .status()
+            .context("sudo chown failed")?;
     }
 
-    // Write to a temp file beside the destination, then move atomically
+    // Copy to a temp file beside the destination, then move atomically
+    // to avoid "text file busy" when replacing a running binary
     let tmp = parent.join(".qwert-new");
-    let status = Command::new("sudo")
-        .args(["cp", &src.to_string_lossy(), &tmp.to_string_lossy()])
-        .status()
-        .context("sudo cp failed")?;
-    if !status.success() {
-        anyhow::bail!("sudo cp failed — check permissions on {}", parent.display());
-    }
-
-    Command::new("sudo")
-        .args(["chmod", "755", &tmp.to_string_lossy()])
-        .status()
-        .context("sudo chmod failed")?;
-
-    let status = Command::new("sudo")
-        .args(["mv", &tmp.to_string_lossy(), &dest.to_string_lossy()])
-        .status()
-        .context("sudo mv failed")?;
-    if !status.success() {
-        anyhow::bail!("sudo mv failed");
-    }
+    std::fs::copy(src, &tmp).context("failed to copy binary")?;
+    std::fs::set_permissions(&tmp, std::os::unix::fs::PermissionsExt::from_mode(0o755))?;
+    std::fs::rename(&tmp, dest).context("failed to replace binary")?;
 
     Ok(())
 }
