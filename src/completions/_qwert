@@ -23,7 +23,7 @@ _qwert_tools() {
 
 _qwert_declared_tools() {
   local -a tools
-  tools=($(qwert list 2>/dev/null | awk '{print $3}'))
+  tools=($(qwert list 2>/dev/null | awk '{print $2}'))
   [[ ${#tools} -gt 0 ]] && compadd -a tools
 }
 
