@@ -70,11 +70,13 @@ pub struct QwertConfig {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Hooks {
+    /// Runs at the very top of .zshrc — only for things that must come first (e.g. p10k instant prompt)
+    #[serde(default)]
+    pub before: Vec<String>,
+
+    /// Runs at the bottom of .zshrc — where most shell initialization happens
     #[serde(default)]
     pub init: Vec<String>,
-
-    #[serde(default)]
-    pub end: Vec<String>,
 }
 
 impl QwertConfig {
@@ -142,8 +144,8 @@ impl QwertConfig {
 
     pub fn add_hook(&mut self, hook: &str, path: &str) {
         let scripts = match hook {
+            "before" => &mut self.hooks.before,
             "init" => &mut self.hooks.init,
-            "end" => &mut self.hooks.end,
             _ => return,
         };
         if !scripts.iter().any(|s| s == path) {
@@ -269,24 +271,24 @@ mod tests {
     }
 
     #[test]
-    fn add_hook_appends_to_end_hook() {
+    fn add_hook_appends_to_init_hook_at_bottom() {
         // arrange
         let mut config = QwertConfig::default();
         // act
-        config.add_hook("end", "~/dotfiles/aliases.sh");
+        config.add_hook("init", "~/dotfiles/aliases.sh");
         // assert
-        assert_eq!(config.hooks.end, vec!["~/dotfiles/aliases.sh"]);
+        assert_eq!(config.hooks.init, vec!["~/dotfiles/aliases.sh"]);
     }
 
     #[test]
     fn add_hook_ignores_duplicate_path() {
         // arrange
         let mut config = QwertConfig::default();
-        config.add_hook("init", "~/env.sh");
+        config.add_hook("before", "~/env.sh");
         // act
-        config.add_hook("init", "~/env.sh");
+        config.add_hook("before", "~/env.sh");
         // assert
-        assert_eq!(config.hooks.init.len(), 1);
+        assert_eq!(config.hooks.before.len(), 1);
     }
 
     #[test]
@@ -296,8 +298,8 @@ mod tests {
         // act
         config.add_hook("unknown", "~/script.sh");
         // assert — no panic, no side effects
+        assert!(config.hooks.before.is_empty());
         assert!(config.hooks.init.is_empty());
-        assert!(config.hooks.end.is_empty());
     }
 
     #[test]

@@ -88,7 +88,7 @@ _qwert() {
           # free-form, no completion
           ;;
         hook)
-          compadd init end
+          compadd before init
           ;;
         completions)
           compadd bash zsh fish

@@ -236,16 +236,16 @@ configure_shell() {
         printf 'fpath=("${HOME}/.qwert/completions" $fpath)\n' >> "${init_tmp}"
     fi
 
-    printf 'eval "$(qwert hook init)"\n' >> "${init_tmp}"
+    printf 'eval "$(qwert hook before)"\n' >> "${init_tmp}"
     printf '\n' >> "${init_tmp}"
 
     # Prepend init block
     cat "${init_tmp}" "${rc_file}" > "${rc_file}.tmp" && mv "${rc_file}.tmp" "${rc_file}"
     rm "${init_tmp}"
-    ok "init hook added to top of ${rc_file}"
+    ok "before hook added to top of ${rc_file}"
 
-    printf '\neval "$(qwert hook end)"\n' >> "${rc_file}"
-    ok "end hook added to bottom of ${rc_file}"
+    printf '\neval "$(qwert hook init)"\n' >> "${rc_file}"
+    ok "init hook added to bottom of ${rc_file}"
 }
 
 # ---------------------------------------------------------------------------

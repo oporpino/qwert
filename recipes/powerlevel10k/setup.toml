@@ -1,15 +1,15 @@
-dest = "~/.qwert/hooks/end/powerlevel10k.sh"
+dest = "~/.qwert/hooks/init/powerlevel10k.sh"
 
-# Writes shell fragment to ~/.qwert/hooks/end/ — sourced automatically by qwert hook end.
+# Writes shell fragment to ~/.qwert/hooks/init/ — sourced automatically by qwert hook init.
 # Also symlinks ~/.p10k.zsh from your config dir (~/.config/qwert/p10k.zsh).
 macos = [
-  "mkdir -p ~/.qwert/hooks/end",
-  "printf 'source \"$(brew --prefix)/share/powerlevel10k/powerlevel10k.zsh-theme\"\\n[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh\\n' > ~/.qwert/hooks/end/powerlevel10k.sh",
+  "mkdir -p ~/.qwert/hooks/init",
+  "printf 'source \"$(brew --prefix)/share/powerlevel10k/powerlevel10k.zsh-theme\"\\n[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh\\n' > ~/.qwert/hooks/init/powerlevel10k.sh",
   "ln -sf ~/.config/qwert/p10k.zsh ~/.p10k.zsh"
 ]
 
 [undo]
 macos = [
-  "rm -f ~/.qwert/hooks/end/powerlevel10k.sh",
+  "rm -f ~/.qwert/hooks/init/powerlevel10k.sh",
   "rm -f ~/.p10k.zsh"
 ]
