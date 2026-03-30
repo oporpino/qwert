@@ -1,14 +1,58 @@
 use anyhow::Result;
+use std::path::PathBuf;
 
 pub mod fs;
-pub mod macos;
-pub mod linux;
+pub mod impls;
+pub mod shared;
+
+/// Runtime data directory for qwert: ~/.local/share/qwert/
+pub fn data_dir() -> PathBuf {
+    dirs::home_dir()
+        .expect("no home dir")
+        .join(".local/share/qwert")
+}
+
+/// Platform-specific installation conventions (paths, completions, shell config).
+pub trait InstallerOps {
+    /// /opt/qwert/bin/qwert
+    fn binary_path(&self) -> PathBuf;
+
+    /// /usr/local/bin/qwert
+    fn symlink_path(&self) -> PathBuf;
+
+    /// System zsh completion path (e.g. /usr/local/share/zsh/site-functions/_qwert)
+    fn zsh_completion_path(&self) -> PathBuf;
+
+    /// System bash completion path — None on platforms where bash completions are not standard
+    fn bash_completion_path(&self) -> Option<PathBuf>;
+
+    /// Shell rc file candidates in priority order (first existing file wins)
+    fn shell_rc_candidates(&self) -> Vec<PathBuf>;
+
+    /// Install shell completions to system paths (requires sudo)
+    fn install_completions(&self) -> Result<()>;
+
+    /// Inject qwert hooks into the user's shell rc. Returns the rc file path used.
+    fn configure_shell(&self) -> Result<PathBuf>;
+}
+
+/// Returns the platform-specific installer implementation.
+pub fn installer() -> Box<dyn InstallerOps> {
+    match detect() {
+        Platform::MacOS => Box::new(impls::macos::MacOS),
+        Platform::Debian => Box::new(impls::debian::Debian),
+        Platform::Arch => Box::new(impls::arch::Arch),
+        Platform::Unknown => Box::new(impls::linux::Linux),
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Platform {
     MacOS,
     /// Debian-based Linux (Ubuntu, Debian, etc.) — uses apt-get
     Debian,
+    /// Arch-based Linux (Arch, Manjaro, etc.) — uses pacman
+    Arch,
     Unknown,
 }
 
@@ -17,6 +61,7 @@ impl std::fmt::Display for Platform {
         match self {
             Platform::MacOS => write!(f, "macOS"),
             Platform::Debian => write!(f, "Debian Linux"),
+            Platform::Arch => write!(f, "Arch Linux"),
             Platform::Unknown => write!(f, "unknown"),
         }
     }
@@ -27,11 +72,12 @@ pub fn detect() -> Platform {
         return Platform::MacOS;
     }
     if cfg!(target_os = "linux") {
-        // Detect distro family by checking for apt-get
         if std::path::Path::new("/usr/bin/apt-get").exists() {
             return Platform::Debian;
         }
-        // Future: detect dnf/pacman for RedHat/Arch support
+        if std::path::Path::new("/usr/bin/pacman").exists() {
+            return Platform::Arch;
+        }
     }
     Platform::Unknown
 }
@@ -107,7 +153,9 @@ pub fn version_of(binary: &str, flag: &str) -> Option<String> {
 /// Get the current platform ops implementation
 pub fn current() -> Box<dyn PlatformOps> {
     match detect() {
-        Platform::MacOS => Box::new(macos::MacOS),
-        Platform::Debian | Platform::Unknown => Box::new(linux::Linux),
+        Platform::MacOS => Box::new(impls::macos::MacOS),
+        Platform::Debian => Box::new(impls::debian::Debian),
+        Platform::Arch => Box::new(impls::arch::Arch),
+        Platform::Unknown => Box::new(impls::linux::Linux),
     }
 }

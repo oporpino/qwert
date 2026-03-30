@@ -7,9 +7,9 @@ pub fn run(phase: &str) -> Result<()> {
         return Ok(());
     }
 
-    // Auto-source recipe-generated fragments from ~/.qwert/hooks/{phase}/
-    if let Some(home) = dirs::home_dir() {
-        let hooks_dir = home.join(".qwert").join("hooks").join(phase);
+    // Auto-source recipe-generated fragments from ~/.local/share/qwert/hooks/{phase}/
+    {
+        let hooks_dir = crate::platform::data_dir().join("hooks").join(phase);
         if hooks_dir.is_dir() {
             let mut entries: Vec<_> = std::fs::read_dir(&hooks_dir)
                 .into_iter()

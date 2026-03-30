@@ -15,6 +15,7 @@ pub fn run(name: &str) -> Result<()> {
         match crate::platform::detect() {
             crate::platform::Platform::MacOS => RecipeKind::Brew,
             crate::platform::Platform::Debian => RecipeKind::Apt,
+            crate::platform::Platform::Arch => RecipeKind::Pacman,
             crate::platform::Platform::Unknown => return Ok(()),
         }
     };

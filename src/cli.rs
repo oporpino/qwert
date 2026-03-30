@@ -173,6 +173,8 @@ pub enum SelfAction {
     Upgrade,
     /// Reinstall qwert
     Reinstall,
+    /// Complete post-binary installation setup (symlinks, completions, shell config)
+    Install,
 }
 
 #[derive(Subcommand)]

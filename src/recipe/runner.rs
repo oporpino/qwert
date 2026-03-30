@@ -216,7 +216,7 @@ pub fn status_with_output(recipe: &Recipe) {
 
 // --- Setup phase ---
 
-/// Resolve the src path: explicit src (expands ~) or default QWERT_CONFIG_DIR/<name>
+/// Resolve the src path: explicit src (expands ~) or default ~/.qwert/<name>
 fn resolve_src(setup: &RecipeSetup, recipe_name: &str, config_dir: &Path) -> PathBuf {
     match &setup.src {
         Some(src) => PathBuf::from(qwert_yml::expand_tilde(src)),
@@ -377,9 +377,9 @@ pub fn undo_setup(recipe: &Recipe, _config_dir: &Path) -> RunResult {
 
     // Copy: backup then remove
     if dest.exists() {
-        let backup_dir = dirs::home_dir()
-            .map(|h| h.join(".qwert").join("backups").join(&recipe.meta.name))
-            .unwrap_or_else(|| PathBuf::from("/tmp/qwert-backups").join(&recipe.meta.name));
+        let backup_dir = crate::platform::data_dir()
+            .join("backups")
+            .join(&recipe.meta.name);
 
         let filename = dest.file_name().unwrap_or_default();
         let backup_path = backup_dir.join(filename);

@@ -154,32 +154,16 @@ impl QwertConfig {
     }
 }
 
-/// Resolve the config directory from env or default
+/// User directory: ~/.qwert/ (dotfiles + manifest)
 pub fn config_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("QWERT_CONFIG_DIR") {
-        return PathBuf::from(dir);
-    }
-    // Also check ~/.qwert/config for the persisted setting
-    if let Some(home) = dirs::home_dir() {
-        let cfg_file = home.join(".qwert").join("config");
-        if cfg_file.exists() {
-            if let Ok(content) = std::fs::read_to_string(&cfg_file) {
-                for line in content.lines() {
-                    if let Some(val) = line.strip_prefix("QWERT_CONFIG_DIR=") {
-                        let expanded = expand_tilde(val.trim());
-                        return PathBuf::from(expanded);
-                    }
-                }
-            }
-        }
-        return home.join(".config");
-    }
-    PathBuf::from("~/.config")
+    dirs::home_dir()
+        .expect("no home dir")
+        .join(".qwert")
 }
 
-/// Path to the qwert.yml manifest
+/// Path to the manifest: ~/.qwert/config.yml
 pub fn manifest_path() -> PathBuf {
-    config_dir().join("qwert.yml")
+    config_dir().join("config.yml")
 }
 
 pub(crate) fn expand_tilde(path: &str) -> String {
@@ -331,14 +315,13 @@ mod tests {
     }
 
     #[test]
-    fn config_dir_uses_env_var_when_set() {
+    fn config_dir_returns_qwert_home() {
         // arrange
-        std::env::set_var("QWERT_CONFIG_DIR", "/tmp/my-dotfiles");
+        let home = dirs::home_dir().unwrap();
         // act
         let dir = config_dir();
-        std::env::remove_var("QWERT_CONFIG_DIR");
         // assert
-        assert_eq!(dir, std::path::PathBuf::from("/tmp/my-dotfiles"));
+        assert_eq!(dir, home.join(".qwert"));
     }
 
     #[test]

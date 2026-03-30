@@ -125,7 +125,7 @@ pub struct SetupFile {
 fn platform_cmds<'a>(platform: &crate::platform::Platform, macos: Option<&'a Commands>, debian: Option<&'a Commands>) -> Vec<&'a str> {
     let cmds = match platform {
         crate::platform::Platform::MacOS => macos,
-        crate::platform::Platform::Debian | crate::platform::Platform::Unknown => debian,
+        crate::platform::Platform::Debian | crate::platform::Platform::Arch | crate::platform::Platform::Unknown => debian,
     };
     cmds.map(|c| c.as_steps()).unwrap_or_default()
 }

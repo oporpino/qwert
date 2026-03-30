@@ -29,6 +29,7 @@ pub fn default_adapter() -> Option<Box<dyn PackageAdapter>> {
     match crate::platform::detect() {
         crate::platform::Platform::MacOS => Some(Box::new(BrewAdapter)),
         crate::platform::Platform::Debian => Some(Box::new(AptAdapter)),
+        crate::platform::Platform::Arch => Some(Box::new(PacmanAdapter)),
         crate::platform::Platform::Unknown => None,
     }
 }

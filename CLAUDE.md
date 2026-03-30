@@ -4,11 +4,12 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## What is QWERT
 
-QWERT is a **dev environment manager** — not a package manager. The user declares what their machine should have in `~/.config/qwert.yml`, saves their dotfiles in a personal repo, and runs `qwert apply` on any new machine to replicate the environment exactly.
+QWERT is a **dev environment manager** — not a package manager. The user declares what their machine should have in `~/.qwert/config.yml`, saves their dotfiles in a personal repo, and runs `qwert apply` on any new machine to replicate the environment exactly.
 
-- `~/.config/qwert.yml` — the manifest: tools, stacks, hooks. Managed by qwert.
-- `~/.config/qwert/` — the developer's personal dotfiles. Free-form directory, saved in a personal repo.
-- `~/.qwert/` — qwert installation (binary, recipes, completions, state). Never edited by the user.
+- `~/.qwert/config.yml` — the manifest: tools, stacks, hooks.
+- `~/.qwert/` — the developer's personal dotfiles. Free-form directory, version-controlled in a personal git repo.
+- `~/.local/share/qwert/` — qwert runtime data (recipes, completions, state, hooks, backups). Never edited by the user.
+- `/opt/qwert/bin/qwert` — the binary.
 
 No env vars needed. No shell config beyond what the installer writes.
 
@@ -42,7 +43,7 @@ src/
 │   └── help.rs
 ├── recipe/
 │   ├── schema.rs           ← Recipe, RecipeMeta, RecipeKind, RecipeSetup, Commands
-│   ├── index.rs            ← find/load_all from ~/.qwert/recipes/<name>/
+│   ├── index.rs            ← find/load_all from ~/.local/share/qwert/recipes/<name>/
 │   └── runner.rs           ← install/upgrade/uninstall/setup/undo_setup
 ├── adapters/               ← package manager adapters
 │   ├── mod.rs              ← PackageAdapter trait + for_kind()
@@ -50,8 +51,8 @@ src/
 │   ├── apt.rs
 │   └── pacman.rs
 ├── config/
-│   ├── qwert_yml.rs        ← reads/writes qwert.yml
-│   └── state_yml.rs        ← tracks what qwert installed (~/.qwert/state.yml)
+│   ├── qwert_yml.rs        ← reads/writes ~/.qwert/config.yml
+│   └── state_yml.rs        ← tracks what qwert installed (~/.local/share/qwert/state.yml)
 ├── platform/
 │   ├── mod.rs              ← Platform enum, detect(), which(), run_cmd()
 │   └── fs.rs               ← create_symlink(), copy_file()
@@ -90,7 +91,7 @@ qwert help
 
 ## Recipe System
 
-Recipes live in `recipes/<name>/` (cached to `~/.qwert/recipes/` at install time). Each recipe is a directory with up to two files — both optional:
+Recipes live in `recipes/<name>/` (cached to `~/.local/share/qwert/recipes/` at install time). Each recipe is a directory with up to two files — both optional:
 
 ```
 recipes/
@@ -134,14 +135,14 @@ debian = ["step one", "step two"]
 ### `setup.toml`
 
 ```toml
-# symlink: ~/.tmux.conf → ~/.config/qwert/tmux (undo = remove symlink)
+# symlink: ~/.tmux.conf → ~/.qwert/tmux (undo = remove symlink)
 dest = "~/.tmux.conf"
 symlink = true
-# src optional — defaults to ~/.config/qwert/<name>
+# src optional — defaults to ~/.qwert/<name>
 
 # commands: run on setup (undo = [undo] section)
-dest = "~/.config/qwert/iterm2"
-macos = ["defaults write com.googlecode.iterm2 PrefsCustomFolder -string ~/.config/qwert/iterm2"]
+dest = "~/.qwert/iterm2"
+macos = ["defaults write com.googlecode.iterm2 PrefsCustomFolder -string ~/.qwert/iterm2"]
 
 [undo]
 macos = ["defaults delete com.googlecode.iterm2 PrefsCustomFolder"]
@@ -149,14 +150,14 @@ macos = ["defaults delete com.googlecode.iterm2 PrefsCustomFolder"]
 
 **Setup types and undo behaviour:**
 - `symlink = true` — undo removes the symlink
-- copy (dest exists, no symlink) — undo backs up to `~/.qwert/backups/<name>/` then removes
+- copy (dest exists, no symlink) — undo backs up to `~/.local/share/qwert/backups/<name>/` then removes
 - commands — undo runs `[undo]` section; warns if not defined
 
 ### Adapter pattern
 
 For `brew`/`apt`/`pacman` recipes, **do not write `[install]`/`[upgrade]`/`[uninstall]` sections** — the adapter derives commands from `meta.name` (or `meta.pkg` if set). Explicit sections are only for `qwert` type or platform fallback.
 
-## qwert.yml schema
+## config.yml schema
 
 ```yaml
 tools:
@@ -165,14 +166,14 @@ tools:
 
 hooks:
   init:
-    - ~/.config/qwert/zsh/init.sh
+    - ~/.qwert/zsh/init.sh
   end:
-    - ~/.config/qwert/zsh/end.sh
+    - ~/.qwert/zsh/end.sh
 ```
 
 ## State tracking
 
-`~/.qwert/state.yml` records which tools qwert has installed. Used by `apply` to detect orphans (tools removed from `qwert.yml` since last apply) and uninstall them.
+`~/.local/share/qwert/state.yml` records which tools qwert has installed. Used by `apply` to detect orphans (tools removed from `config.yml` since last apply) and uninstall them.
 
 ## Platform detection
 

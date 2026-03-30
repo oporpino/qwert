@@ -12,6 +12,7 @@ fn load_toml_opt<T: DeserializeOwned>(path: &Path) -> Option<T> {
 fn default_kind() -> RecipeKind {
     match platform::detect() {
         platform::Platform::MacOS => RecipeKind::Brew,
+        platform::Platform::Arch => RecipeKind::Pacman,
         platform::Platform::Debian | platform::Platform::Unknown => RecipeKind::Apt,
     }
 }
@@ -82,9 +83,9 @@ pub fn load_all(recipes_dir: &Path) -> Vec<Recipe> {
     recipes
 }
 
-/// Path to the recipes cache directory (~/.qwert/recipes/)
+/// Path to the recipes cache directory (~/.local/share/qwert/recipes/)
 pub fn cache_dir() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".qwert").join("recipes"))
+    Some(crate::platform::data_dir().join("recipes"))
 }
 
 

@@ -51,10 +51,7 @@ impl QwertState {
 }
 
 pub fn state_path() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_default()
-        .join(".qwert")
-        .join("state.yml")
+    crate::platform::data_dir().join("state.yml")
 }
 
 #[cfg(test)]

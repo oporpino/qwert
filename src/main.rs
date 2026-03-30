@@ -71,6 +71,7 @@ fn main() {
         Command::SelfManage { action } => match action {
             SelfAction::Upgrade => commands::self_cmd::upgrade(),
             SelfAction::Reinstall => commands::self_cmd::reinstall(),
+            SelfAction::Install => commands::self_cmd::install(),
         },
 
         Command::Recipes { action } => match action {
