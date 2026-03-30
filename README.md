@@ -1,72 +1,52 @@
 # QWERT
-### The dev tools manager!
 
-Setup your dev enviroment with all your tools in minutes and just once!
+A dev environment manager. Declare the tools you need in `~/.qwert/config.yml`, save your dotfiles in a personal repo, and run `qwert apply` on any new machine to replicate the environment exactly.
 
-# Install
-Install via `curl`. 
+## Install
 
-```
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/gporpino/qwert/latest/scripts/install.sh)"
+```sh
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/oporpino/qwert/latest/scripts/install.sh)"
 ```
 
-
-# Usage
-
-## macOS
-run to setup enviroment for macOS:
+## Usage
 
 ```
-qwert setup macos
+qwert use <tool>         # declare + install + setup
+qwert install <tool>     # declare + install (no setup)
+qwert setup <tool>       # declare + run setup
+qwert uninstall <tool>   # remove from config + uninstall
+qwert drop <tool>        # full teardown: uninstall + undo setup
+qwert apply              # sync all declared tools
+qwert status             # show installed tools
+qwert search <term>      # search recipes + brew
+qwert upgrade <tool>     # upgrade a tool
+qwert upgrade --all      # upgrade all tools
+qwert self upgrade       # upgrade qwert itself
+qwert doctor             # check environment health
 ```
 
-## linux
-\# Not implemented yet.
+## Config
 
+`~/.qwert/config.yml` — the manifest for your environment:
 
-## Avaliable Tools
+```yaml
+tools:
+  - tmux
+  - lvim
 
-- Homebrew
-- Git Delta
-- LunarVim
-- Tmux
+hooks:
+  before:
+    - ~/.qwert/zsh/init.sh
+  init:
+    - ~/.qwert/zsh/end.sh
+```
 
-### Git Delta:
-- Modern syntax-highlighting pager for git, diff, and grep output
-- Automatically configured as git pager with side-by-side view
-- Enhanced diff visualization with line numbers and syntax highlighting
+Save `~/.qwert/` in a private repository. On a new machine, clone it and run `qwert apply`.
 
-### TMUX:
-- Plugin Manager Installed with some plugins by default. Run `<prefix> + I` to install plugins.
-- Bind some intuitive shortcuts.
+## How it works
 
-#### Shortcuts
-- \<prefix>+"-": To slip window horizontaly
-- \<prefix>+"|": To slip window verticaly
-- \<prefix>+"r": To reload configurations.
+- `~/.qwert/` — your dotfiles. Free-form, version-controlled in your personal repo.
+- `~/.local/share/qwert/` — qwert runtime data (recipes, state, backups). Never edited manually.
+- `/opt/qwert/bin/qwert` — the binary.
 
-See all custom shortcuts at `~/.tmux.conf`
-
-### Lunar Vim
-- Some optional plugins installed
-
-### Homebrew
-- Install `Homebrew` and some plugins
-
-## Customization
-We also made some custom mods to improve the usage of tools, but you can extend and change as you want.
-
-To save your customization you just need to save `.config/qwert` folder, and all your enviroment will be the same. We recomend to you save the `.config` in a private repository. 
-
-# Dependencies
-The qwert needs `curl`, `oh-my-zsh` to works properly. Don`t worry, we will install it on QWERT instalation.
-
-# Coming Soon
-We will implements many others capabilities. 
-
-Roadmap tools
-- ASDF
-- PowerShell 10k
-- Postgree
-
-Please, contribute with us sending PRs! 🙏
+Recipes live in `~/.local/share/qwert/recipes/`. Each recipe can define install steps, setup (symlinks, copies, commands), and undo behaviour.
