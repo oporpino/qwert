@@ -136,23 +136,41 @@ pub fn create_symlink_sudo(target: &Path, link: &Path) -> Result<()> {
 }
 
 /// Install a binary to a system path using sudo.
+/// Copies to a temp file beside the destination first, then moves atomically
+/// to avoid "text file busy" errors when replacing a running binary.
 pub fn install_binary_sudo(src: &Path, dest: &Path) -> Result<()> {
-    if let Some(parent) = dest.parent() {
-        Command::new("sudo")
-            .args(["mkdir", "-p", &parent.to_string_lossy()])
-            .status()
-            .context("sudo mkdir failed")?;
-    }
+    let parent = dest.parent().context("binary path has no parent")?;
+
     let status = Command::new("sudo")
-        .args(["cp", &src.to_string_lossy(), &dest.to_string_lossy()])
+        .args(["mkdir", "-p", &parent.to_string_lossy()])
         .status()
-        .context("failed to install binary (requires sudo)")?;
+        .context("sudo mkdir failed")?;
     if !status.success() {
-        anyhow::bail!("sudo cp failed — permission denied");
+        anyhow::bail!("sudo mkdir failed");
     }
+
+    // Write to a temp file beside the destination, then move atomically
+    let tmp = parent.join(".qwert-new");
+    let status = Command::new("sudo")
+        .args(["cp", &src.to_string_lossy(), &tmp.to_string_lossy()])
+        .status()
+        .context("sudo cp failed")?;
+    if !status.success() {
+        anyhow::bail!("sudo cp failed — check permissions on {}", parent.display());
+    }
+
     Command::new("sudo")
-        .args(["chmod", "755", &dest.to_string_lossy()])
+        .args(["chmod", "755", &tmp.to_string_lossy()])
         .status()
         .context("sudo chmod failed")?;
+
+    let status = Command::new("sudo")
+        .args(["mv", &tmp.to_string_lossy(), &dest.to_string_lossy()])
+        .status()
+        .context("sudo mv failed")?;
+    if !status.success() {
+        anyhow::bail!("sudo mv failed");
+    }
+
     Ok(())
 }
