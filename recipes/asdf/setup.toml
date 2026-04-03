@@ -1,4 +1,4 @@
-dest = "~/.qwert/hooks/init/asdf.sh"
+to = "~/.qwert/hooks/init/asdf.sh"
 
 # macOS: oh-my-zsh asdf plugin handles shell integration (add asdf to plugins list).
 # Debian: writes shell fragment to ~/.qwert/hooks/init/ — sourced automatically by qwert hook init.

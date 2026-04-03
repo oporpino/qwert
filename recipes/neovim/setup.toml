@@ -1,2 +1,2 @@
-dest = "~/.config/nvim"
+to = "~/.config/nvim"
 symlink = true

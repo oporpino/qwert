@@ -1,4 +1,4 @@
-dest = "~/.qwert/hooks/init/powerlevel10k.sh"
+to = "~/.qwert/hooks/init/powerlevel10k.sh"
 
 # Writes shell fragment to ~/.qwert/hooks/init/ — sourced automatically by qwert hook init.
 # Also symlinks ~/.p10k.zsh from your config dir (~/.qwert/p10k.zsh).

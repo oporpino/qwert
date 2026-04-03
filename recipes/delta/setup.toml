@@ -1,4 +1,4 @@
-dest = "~/.gitconfig"
+to = "~/.gitconfig"
 macos = [
   "git config --global core.pager delta",
   "git config --global interactive.diffFilter 'delta --color-only'",
