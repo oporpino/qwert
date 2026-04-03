@@ -7,6 +7,9 @@ use crate::ui::printer;
 const TARBALL_URL: &str =
     "https://github.com/oporpino/qwert/archive/refs/heads/main.tar.gz";
 
+const VERSION_URL: &str =
+    "https://raw.githubusercontent.com/oporpino/qwert/main/recipes/VERSION";
+
 pub fn update() -> Result<()> {
     printer::h1("Updating recipes...");
     printer::blank();
@@ -16,15 +19,32 @@ pub fn update() -> Result<()> {
     Ok(())
 }
 
-/// Silent best-effort update — fetches only when cache is empty.
+/// Silent best-effort update — fetches only when remote VERSION differs from cache.
 /// Errors are ignored so offline usage is unaffected.
 pub fn update_silent() {
-    if let Some(cache) = cache_dir() {
-        let is_empty = !cache.exists()
-            || std::fs::read_dir(&cache).map_or(true, |mut d| d.next().is_none());
-        if is_empty {
-            let _ = fetch();
-        }
+    let remote = match fetch_version() {
+        Some(v) => v,
+        None => return,
+    };
+
+    let local = cache_dir()
+        .and_then(|c| std::fs::read_to_string(c.join("VERSION")).ok())
+        .unwrap_or_default();
+
+    if local.trim() != remote.trim() {
+        let _ = fetch();
+    }
+}
+
+fn fetch_version() -> Option<String> {
+    let output = Command::new("curl")
+        .args(["-fsSL", "--max-time", "5", VERSION_URL])
+        .output()
+        .ok()?;
+    if output.status.success() {
+        Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    } else {
+        None
     }
 }
 
