@@ -1,3 +1,3 @@
-from = "~/.qwert/tmux/config/tmux.conf"
+from = "~/.qwert/tmux/tmux.conf"
 to = "~/.tmux.conf"
 symlink = true
