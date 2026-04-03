@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+QWERT_BIN="/opt/qwert/bin"
+
+cargo build --release
+sudo mkdir -p "${QWERT_BIN}"
+sudo cp target/release/qwert "${QWERT_BIN}/qwert"
+echo "→ deployed to ${QWERT_BIN}/qwert"
