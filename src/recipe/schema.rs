@@ -85,8 +85,8 @@ pub struct RecipeUninstall {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RecipeSetup {
-    pub src: Option<String>,
-    pub dest: String,
+    pub from: Option<String>,
+    pub to: String,
     #[serde(default)]
     pub symlink: bool,
     pub macos: Option<Commands>,
@@ -113,8 +113,8 @@ pub struct InstallFile {
 /// Parsed from setup.toml (flat, no sections except [undo])
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SetupFile {
-    pub src: Option<String>,
-    pub dest: String,
+    pub from: Option<String>,
+    pub to: String,
     #[serde(default)]
     pub symlink: bool,
     pub macos: Option<Commands>,
@@ -316,8 +316,8 @@ command = "lvim"
     fn setup_cmds_for_macos_returns_macos_commands() {
         // arrange
         let setup = RecipeSetup {
-            src: None,
-            dest: "~/.config/iterm2".into(),
+            from: None,
+            to: "~/.config/iterm2".into(),
             symlink: false,
             macos: Some(Commands::One("defaults write com.foo bar".into())),
             debian: None,
@@ -333,8 +333,8 @@ command = "lvim"
     fn setup_cmds_for_debian_returns_debian_commands() {
         // arrange
         let setup = RecipeSetup {
-            src: None,
-            dest: "/etc/foo".into(),
+            from: None,
+            to: "/etc/foo".into(),
             symlink: false,
             macos: None,
             debian: Some(Commands::One("ln -s foo bar".into())),
@@ -350,8 +350,8 @@ command = "lvim"
     fn setup_cmds_for_returns_empty_when_no_commands() {
         // arrange
         let setup = RecipeSetup {
-            src: None,
-            dest: "~/.tmux.conf".into(),
+            from: None,
+            to: "~/.tmux.conf".into(),
             symlink: true,
             macos: None,
             debian: None,
@@ -367,8 +367,8 @@ command = "lvim"
     fn undo_cmds_for_returns_undo_commands() {
         // arrange
         let setup = RecipeSetup {
-            src: None,
-            dest: "~/.config/iterm2".into(),
+            from: None,
+            to: "~/.config/iterm2".into(),
             symlink: false,
             macos: None,
             debian: None,
@@ -387,8 +387,8 @@ command = "lvim"
     fn undo_cmds_for_returns_empty_when_no_undo_section() {
         // arrange
         let setup = RecipeSetup {
-            src: None,
-            dest: "~/.tmux.conf".into(),
+            from: None,
+            to: "~/.tmux.conf".into(),
             symlink: true,
             macos: None,
             debian: None,

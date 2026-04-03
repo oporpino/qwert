@@ -32,8 +32,8 @@ fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<Setup
     });
 
     let recipe_setup = setup.map(|s| RecipeSetup {
-        src: s.src,
-        dest: s.dest,
+        from: s.from,
+        to: s.to,
         symlink: s.symlink,
         macos: s.macos,
         debian: s.debian,
@@ -107,7 +107,7 @@ version_flag = "-V"
 "#;
 
     const SETUP_TOML: &str = r#"
-dest = "~/.tmux.conf"
+to = "~/.tmux.conf"
 symlink = true
 "#;
 
@@ -156,7 +156,7 @@ symlink = true
         let result = find("tmux", &dir).unwrap();
         // assert
         assert!(result.setup.is_some());
-        assert_eq!(result.setup.unwrap().dest, "~/.tmux.conf");
+        assert_eq!(result.setup.unwrap().to, "~/.tmux.conf");
         fs::remove_dir_all(&dir).ok();
     }
 

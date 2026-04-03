@@ -216,10 +216,10 @@ pub fn status_with_output(recipe: &Recipe) {
 
 // --- Setup phase ---
 
-/// Resolve the src path: explicit src (expands ~) or default ~/.qwert/<name>
-fn resolve_src(setup: &RecipeSetup, recipe_name: &str, config_dir: &Path) -> PathBuf {
-    match &setup.src {
-        Some(src) => PathBuf::from(qwert_yml::expand_tilde(src)),
+/// Resolve the from path: explicit from (expands ~) or default ~/.qwert/<name>
+fn resolve_from(setup: &RecipeSetup, recipe_name: &str, config_dir: &Path) -> PathBuf {
+    match &setup.from {
+        Some(from) => PathBuf::from(qwert_yml::expand_tilde(from)),
         None => config_dir.join(recipe_name),
     }
 }
@@ -227,7 +227,7 @@ fn resolve_src(setup: &RecipeSetup, recipe_name: &str, config_dir: &Path) -> Pat
 /// Core setup logic for a RecipeSetup section (shared by recipe and inline setup).
 fn run_setup_section(name: &str, s: &RecipeSetup, config_dir: &Path) -> RunResult {
     let platform = platform::detect();
-    let dest = PathBuf::from(qwert_yml::expand_tilde(&s.dest));
+    let dest = PathBuf::from(qwert_yml::expand_tilde(&s.to));
 
     // Commands-based setup (iterm2, delta, etc.)
     let cmds = s.setup_cmds_for(&platform);
@@ -242,11 +242,11 @@ fn run_setup_section(name: &str, s: &RecipeSetup, config_dir: &Path) -> RunResul
 
     // Symlink
     if s.symlink {
-        let src = resolve_src(s, name, config_dir);
-        if dest.is_symlink() && std::fs::read_link(&dest).ok().as_deref() == Some(src.as_path()) {
+        let from = resolve_from(s, name, config_dir);
+        if dest.is_symlink() && std::fs::read_link(&dest).ok().as_deref() == Some(from.as_path()) {
             return RunResult::AlreadyInstalled { version: None };
         }
-        return match pfs::create_symlink(&src, &dest) {
+        return match pfs::create_symlink(&from, &dest) {
             Ok(_) => RunResult::Installed,
             Err(e) => RunResult::Failed(e.to_string()),
         };
@@ -256,11 +256,11 @@ fn run_setup_section(name: &str, s: &RecipeSetup, config_dir: &Path) -> RunResul
     if dest.exists() {
         return RunResult::AlreadyInstalled { version: None };
     }
-    let src = resolve_src(s, name, config_dir);
-    if !src.exists() {
-        return RunResult::Failed(format!("src not found: {}", src.display()));
+    let from = resolve_from(s, name, config_dir);
+    if !from.exists() {
+        return RunResult::Failed(format!("from not found: {}", from.display()));
     }
-    match pfs::copy_file(&src, &dest) {
+    match pfs::copy_file(&from, &dest) {
         Ok(_) => RunResult::Installed,
         Err(e) => RunResult::Failed(e.to_string()),
     }
@@ -286,8 +286,8 @@ pub fn setup_inline(name: &str, inline: &qwert_yml::InlineSetup, config_dir: &Pa
     }
 
     let recipe_setup = RecipeSetup {
-        src: inline.src.clone(),
-        dest: inline.dest.clone(),
+        from: inline.from.clone(),
+        to: inline.to.clone(),
         symlink: inline.symlink,
         macos: inline.macos.as_ref().map(to_commands),
         debian: inline.debian.as_ref().map(to_commands),
@@ -345,7 +345,7 @@ pub fn undo_setup(recipe: &Recipe, _config_dir: &Path) -> RunResult {
     };
 
     let platform = platform::detect();
-    let dest = PathBuf::from(qwert_yml::expand_tilde(&s.dest));
+    let dest = PathBuf::from(qwert_yml::expand_tilde(&s.to));
 
     // Commands-based: run undo commands
     let cmds = s.setup_cmds_for(&platform);
@@ -416,7 +416,7 @@ pub fn undo_setup_with_output(recipe: &Recipe, config_dir: &Path) -> bool {
 /// Returns a static label for setup status
 pub fn setup_status_label(setup: &RecipeSetup, config_dir: &Path, recipe_name: &str) -> &'static str {
     let platform = platform::detect();
-    let dest = PathBuf::from(qwert_yml::expand_tilde(&setup.dest));
+    let dest = PathBuf::from(qwert_yml::expand_tilde(&setup.to));
 
     // Commands-based: always show "configured" (no reliable idempotency check)
     if !setup.setup_cmds_for(&platform).is_empty() {
@@ -424,8 +424,8 @@ pub fn setup_status_label(setup: &RecipeSetup, config_dir: &Path, recipe_name: &
     }
 
     if setup.symlink {
-        let src = resolve_src(setup, recipe_name, config_dir);
-        if dest.is_symlink() && std::fs::read_link(&dest).ok().as_deref() == Some(src.as_path()) {
+        let from = resolve_from(setup, recipe_name, config_dir);
+        if dest.is_symlink() && std::fs::read_link(&dest).ok().as_deref() == Some(from.as_path()) {
             return "linked";
         }
         return "not linked";
@@ -483,10 +483,10 @@ mod tests {
         }
     }
 
-    fn make_setup(dest: &str, symlink: bool, src: Option<&str>) -> RecipeSetup {
+    fn make_setup(to: &str, symlink: bool, from: Option<&str>) -> RecipeSetup {
         RecipeSetup {
-            src: src.map(|s| s.to_string()),
-            dest: dest.to_string(),
+            from: from.map(|s| s.to_string()),
+            to: to.to_string(),
             symlink,
             macos: None,
             debian: None,
@@ -500,7 +500,7 @@ mod tests {
         let setup = make_setup("~/.tmux.conf", true, Some("/tmp/my-tmux.conf"));
         let config_dir = std::path::PathBuf::from("/home/user/.config/qwert");
         // act
-        let src = resolve_src(&setup, "tmux", &config_dir);
+        let src = resolve_from(&setup, "tmux", &config_dir);
         // assert
         assert_eq!(src, std::path::PathBuf::from("/tmp/my-tmux.conf"));
     }
@@ -511,7 +511,7 @@ mod tests {
         let setup = make_setup("~/.tmux.conf", true, None);
         let config_dir = std::path::PathBuf::from("/home/user/.config/qwert");
         // act
-        let src = resolve_src(&setup, "tmux", &config_dir);
+        let src = resolve_from(&setup, "tmux", &config_dir);
         // assert
         assert_eq!(src, std::path::PathBuf::from("/home/user/.config/qwert/tmux"));
     }
@@ -539,8 +539,8 @@ mod tests {
         let dest = dir.join("dest").join(".tmux.conf");
 
         let s = RecipeSetup {
-            src: Some(src_file.to_str().unwrap().to_string()),
-            dest: dest.to_str().unwrap().to_string(),
+            from: Some(src_file.to_str().unwrap().to_string()),
+            to: dest.to_str().unwrap().to_string(),
             symlink: true,
             macos: None,
             debian: None,
@@ -567,8 +567,8 @@ mod tests {
         std::os::unix::fs::symlink(&src, &dest).unwrap();
 
         let s = RecipeSetup {
-            src: Some(src.to_str().unwrap().to_string()),
-            dest: dest.to_str().unwrap().to_string(),
+            from: Some(src.to_str().unwrap().to_string()),
+            to: dest.to_str().unwrap().to_string(),
             symlink: true,
             macos: None,
             debian: None,
@@ -626,8 +626,8 @@ mod tests {
         fs::write(&src, "my config").unwrap();
 
         let s = RecipeSetup {
-            src: Some(src.to_str().unwrap().to_string()),
-            dest: dest.to_str().unwrap().to_string(),
+            from: Some(src.to_str().unwrap().to_string()),
+            to: dest.to_str().unwrap().to_string(),
             symlink: false,
             macos: None,
             debian: None,
@@ -654,8 +654,8 @@ mod tests {
         std::os::unix::fs::symlink(&src, &dest).unwrap();
 
         let s = RecipeSetup {
-            src: Some(src.to_str().unwrap().to_string()),
-            dest: dest.to_str().unwrap().to_string(),
+            from: Some(src.to_str().unwrap().to_string()),
+            to: dest.to_str().unwrap().to_string(),
             symlink: true,
             macos: None,
             debian: None,
@@ -679,8 +679,8 @@ mod tests {
         fs::write(&dest, "config data").unwrap();
 
         let s = RecipeSetup {
-            src: None,
-            dest: dest.to_str().unwrap().to_string(),
+            from: None,
+            to: dest.to_str().unwrap().to_string(),
             symlink: false,
             macos: None,
             debian: None,
@@ -700,8 +700,8 @@ mod tests {
     fn undo_setup_fails_when_commands_type_and_no_undo_defined() {
         // arrange
         let s = RecipeSetup {
-            src: None,
-            dest: "~/.config/iterm2".into(),
+            from: None,
+            to: "~/.config/iterm2".into(),
             symlink: false,
             macos: Some(Commands::One("defaults write com.foo bar".into())),
             debian: Some(Commands::One("echo debian-setup".into())),
@@ -756,8 +756,8 @@ mod tests {
         std::os::unix::fs::symlink(&src, &dest).unwrap();
 
         let s = RecipeSetup {
-            src: Some(src.to_str().unwrap().to_string()),
-            dest: dest.to_str().unwrap().to_string(),
+            from: Some(src.to_str().unwrap().to_string()),
+            to: dest.to_str().unwrap().to_string(),
             symlink: true,
             macos: None,
             debian: None,

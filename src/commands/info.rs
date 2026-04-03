@@ -5,7 +5,7 @@ use crate::recipe::{index, runner, schema::RecipeSetup};
 use crate::ui::printer;
 
 fn setup_summary(setup: &RecipeSetup, config_dir: &std::path::Path, name: &str) -> String {
-    let dest = &setup.dest;
+    let dest = &setup.to;
     let label = runner::setup_status_label(setup, config_dir, name);
     let platform = crate::platform::detect();
 

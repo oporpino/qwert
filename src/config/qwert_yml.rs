@@ -25,8 +25,8 @@ fn default_version() -> String {
 /// Inline setup defined in qwert.yml — mirrors RecipeSetup without importing recipe module.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InlineSetup {
-    pub src: Option<String>,
-    pub dest: String,
+    pub from: Option<String>,
+    pub to: String,
     #[serde(default)]
     pub symlink: bool,
     pub macos: Option<StringOrList>,
@@ -370,19 +370,19 @@ mod tests {
     #[test]
     fn tool_entry_full_with_setup_symlink() {
         // arrange
-        let yaml = "tools:\n  neovim:\n    version: latest\n    setup:\n      dest: ~/.config/nvim\n      symlink: true\n";
+        let yaml = "tools:\n  neovim:\n    version: latest\n    setup:\n      to: ~/.config/nvim\n      symlink: true\n";
         // act
         let config: QwertConfig = serde_yml::from_str(yaml).unwrap();
         // assert
         let setup = config.setup_of("neovim").unwrap();
-        assert_eq!(setup.dest, "~/.config/nvim");
+        assert_eq!(setup.to, "~/.config/nvim");
         assert!(setup.symlink);
     }
 
     #[test]
     fn tool_entry_full_with_commands() {
         // arrange
-        let yaml = "tools:\n  delta:\n    version: latest\n    setup:\n      dest: ~/.gitconfig\n      macos: \"git config --global core.pager delta\"\n";
+        let yaml = "tools:\n  delta:\n    version: latest\n    setup:\n      to: ~/.gitconfig\n      macos: \"git config --global core.pager delta\"\n";
         // act
         let config: QwertConfig = serde_yml::from_str(yaml).unwrap();
         // assert
@@ -403,7 +403,7 @@ mod tests {
     #[test]
     fn setup_of_returns_setup_for_full_entry() {
         // arrange
-        let yaml = "tools:\n  tmux:\n    version: latest\n    setup:\n      dest: ~/.tmux.conf\n      symlink: true\n";
+        let yaml = "tools:\n  tmux:\n    version: latest\n    setup:\n      to: ~/.tmux.conf\n      symlink: true\n";
         let config: QwertConfig = serde_yml::from_str(yaml).unwrap();
         // act + assert
         assert!(config.setup_of("tmux").is_some());
@@ -430,7 +430,7 @@ mod tests {
     #[test]
     fn add_tool_preserves_existing_inline_setup() {
         // arrange
-        let yaml = "tools:\n  neovim:\n    version: latest\n    setup:\n      dest: ~/.config/nvim\n      symlink: true\n";
+        let yaml = "tools:\n  neovim:\n    version: latest\n    setup:\n      to: ~/.config/nvim\n      symlink: true\n";
         let mut config: QwertConfig = serde_yml::from_str(yaml).unwrap();
         // act — update version without touching setup
         config.add_tool("neovim", Some("0.10"));
@@ -442,7 +442,7 @@ mod tests {
     #[test]
     fn save_and_load_roundtrip_with_inline_setup() {
         // arrange
-        let yaml = "tools:\n  tmux: latest\n  neovim:\n    version: latest\n    setup:\n      dest: ~/.config/nvim\n      symlink: true\n";
+        let yaml = "tools:\n  tmux: latest\n  neovim:\n    version: latest\n    setup:\n      to: ~/.config/nvim\n      symlink: true\n";
         let config: QwertConfig = serde_yml::from_str(yaml).unwrap();
         let path = std::env::temp_dir().join("qwert_test_inline_roundtrip.yml");
         // act
@@ -453,7 +453,7 @@ mod tests {
         assert_eq!(loaded.version_of("tmux"), "latest");
         assert!(loaded.setup_of("tmux").is_none());
         let setup = loaded.setup_of("neovim").unwrap();
-        assert_eq!(setup.dest, "~/.config/nvim");
+        assert_eq!(setup.to, "~/.config/nvim");
         assert!(setup.symlink);
     }
 }
