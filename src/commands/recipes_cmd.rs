@@ -81,7 +81,13 @@ fn fetch() -> Result<()> {
     std::fs::create_dir_all(&cache)?;
 
     for entry in std::fs::read_dir(&src)?.filter_map(|e| e.ok()) {
-        copy_dir(&entry.path(), &cache.join(entry.file_name()))?;
+        let src_path = entry.path();
+        let dst_path = cache.join(entry.file_name());
+        if src_path.is_dir() {
+            copy_dir(&src_path, &dst_path)?;
+        } else {
+            std::fs::copy(&src_path, &dst_path)?;
+        }
     }
 
     std::fs::remove_dir_all(&tmp)?;
