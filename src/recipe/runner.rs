@@ -70,15 +70,16 @@ pub fn install(recipe: &Recipe, recipes_dir: &Path) -> RunResult {
         }
     }
 
-    // Try adapter first
+    // Try adapter first — ensure() installs the package manager itself if missing
     if let Some(adapter) = crate::adapters::for_kind(&recipe.meta.kind) {
-        if adapter.available() {
-            let cmd = adapter.install_cmd(pkg_name(recipe));
-            return match run_install(&cmd) {
-                Ok(_) => RunResult::Installed,
-                Err(e) => RunResult::Failed(e),
-            };
+        if let Err(e) = adapter.ensure() {
+            return RunResult::Failed(e.to_string());
         }
+        let cmd = adapter.install_cmd(pkg_name(recipe));
+        return match run_install(&cmd) {
+            Ok(_) => RunResult::Installed,
+            Err(e) => RunResult::Failed(e),
+        };
     }
 
     // Fall back to explicit commands

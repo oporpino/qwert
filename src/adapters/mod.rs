@@ -13,6 +13,14 @@ pub trait PackageAdapter {
     fn install_cmd(&self, pkg: &str) -> String;
     fn upgrade_cmd(&self, pkg: &str) -> String;
     fn uninstall_cmd(&self, pkg: &str) -> String;
+
+    /// Ensure the package manager itself is installed. Returns Ok if available after the call.
+    fn ensure(&self) -> anyhow::Result<()> {
+        if self.available() {
+            return Ok(());
+        }
+        anyhow::bail!("package manager not available");
+    }
 }
 
 pub fn for_kind(kind: &RecipeKind) -> Option<Box<dyn PackageAdapter>> {
