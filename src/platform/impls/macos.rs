@@ -3,6 +3,15 @@ use std::path::PathBuf;
 
 use crate::platform::{InstallerOps, PlatformOps, run_cmd, shared};
 
+fn brew_prefix() -> Option<PathBuf> {
+    std::process::Command::new("brew")
+        .arg("--prefix")
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| PathBuf::from(String::from_utf8_lossy(&o.stdout).trim().to_string()))
+}
+
 pub struct MacOS;
 
 impl PlatformOps for MacOS {
@@ -25,11 +34,13 @@ impl InstallerOps for MacOS {
     }
 
     fn zsh_completion_path(&self) -> PathBuf {
-        PathBuf::from("/usr/local/share/zsh/site-functions/_qwert")
+        brew_prefix()
+            .map(|p| p.join("share/zsh/site-functions/_qwert"))
+            .unwrap_or_else(|| PathBuf::from("/usr/local/share/zsh/site-functions/_qwert"))
     }
 
     fn bash_completion_path(&self) -> Option<PathBuf> {
-        None
+        brew_prefix().map(|p| p.join("etc/bash_completion.d/qwert"))
     }
 
     fn shell_rc_candidates(&self) -> Vec<PathBuf> {
@@ -37,7 +48,7 @@ impl InstallerOps for MacOS {
     }
 
     fn install_completions(&self) -> Result<()> {
-        shared::write_completion_sudo(&self.zsh_completion_path(), "zsh")
+        shared::install_completions_linux(&self.zsh_completion_path(), self.bash_completion_path().as_deref())
     }
 
     fn configure_shell(&self) -> Result<PathBuf> {
