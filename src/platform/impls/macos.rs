@@ -3,6 +3,19 @@ use std::path::PathBuf;
 
 use crate::platform::{InstallerOps, PlatformOps, run_cmd, shared};
 
+fn ensure_brew_shellenv(rc: &std::path::Path) {
+    let brew_bin = if std::env::consts::ARCH == "aarch64" {
+        "/opt/homebrew/bin/brew"
+    } else {
+        "/usr/local/bin/brew"
+    };
+    let snippet = format!(r#"eval "$({} shellenv)" # homebrew"#, brew_bin);
+    let content = std::fs::read_to_string(rc).unwrap_or_default();
+    if !content.contains("brew shellenv") {
+        let _ = std::fs::write(rc, format!("{}\n{}\n", content.trim_end(), snippet));
+    }
+}
+
 fn brew_prefix() -> Option<PathBuf> {
     std::process::Command::new("brew")
         .arg("--prefix")
@@ -52,7 +65,9 @@ impl InstallerOps for MacOS {
     }
 
     fn configure_shell(&self) -> Result<PathBuf> {
-        shared::configure_shell_rc(&self.shell_rc_candidates())
+        let rc = shared::configure_shell_rc(&self.shell_rc_candidates())?;
+        ensure_brew_shellenv(&rc);
+        Ok(rc)
     }
 }
 
