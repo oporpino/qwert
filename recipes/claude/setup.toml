@@ -1,0 +1,10 @@
+to = "~/.claude"
+macos = [
+  "ln -sfn ~/.qwert/ia/skills ~/.claude/skills",
+  "ln -sfn ~/.qwert/ia/commands ~/.claude/commands",
+]
+
+[undo]
+macos = [
+  "rm -f ~/.claude/skills ~/.claude/commands",
+]
