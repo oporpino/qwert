@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::platform::{self, shared};
 use crate::ui::printer;
@@ -60,14 +60,14 @@ pub fn install() -> Result<()> {
 
     let data_dir = platform::data_dir();
     std::fs::create_dir_all(&data_dir)?;
-    // Ensure data dir is owned by the current user (install runs under sudo)
+    let version = format!("v{}", env!("CARGO_PKG_VERSION"));
+    std::fs::write(data_dir.join("version"), &version)?;
+    // Chown after write so the version file itself is also transferred to the user
     if let Ok(user) = std::env::var("SUDO_USER").or_else(|_| std::env::var("USER")) {
         let _ = std::process::Command::new("chown")
             .args(["-R", &user, &data_dir.to_string_lossy()])
             .status();
     }
-    let version = format!("v{}", env!("CARGO_PKG_VERSION"));
-    std::fs::write(data_dir.join("version"), &version)?;
     printer::ok("version", &version);
 
     printer::blank();
@@ -110,6 +110,12 @@ fn download_and_install(version: &str) -> Result<()> {
 
     let data_dir = platform::data_dir();
     std::fs::create_dir_all(&data_dir)?;
-    std::fs::write(data_dir.join("version"), version)?;
+    // Fix ownership if version file was left root-owned by a previous install
+    if let Ok(user) = std::env::var("USER") {
+        let _ = std::process::Command::new("sudo")
+            .args(["chown", "-R", &user, &data_dir.to_string_lossy()])
+            .status();
+    }
+    std::fs::write(data_dir.join("version"), version).context("failed to write version file")?;
     Ok(())
 }
