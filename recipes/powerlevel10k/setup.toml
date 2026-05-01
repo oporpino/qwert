@@ -1,15 +1,19 @@
 to = "~/.local/share/qwert/hooks/init/powerlevel10k.sh"
 
-# Writes shell fragment to ~/.local/share/qwert/hooks/init/ — sourced automatically by qwert hook init.
-# Also symlinks ~/.p10k.zsh from your config dir (~/.qwert/p10k.zsh).
+# Writes instant prompt fragment to hooks/before/ (top of .zshrc via qwert hook before)
+# and theme fragment to hooks/init/ (bottom of .zshrc via qwert hook init).
+# Symlinks ~/.p10k.zsh from ~/.qwert/zsh/p10k.zsh (your dotfiles).
+# If ~/.qwert/zsh/p10k.zsh is missing, p10k runs the configure wizard automatically.
 macos = [
-  "mkdir -p ~/.local/share/qwert/hooks/init",
+  "mkdir -p ~/.local/share/qwert/hooks/before ~/.local/share/qwert/hooks/init",
+  "printf 'if [[ -r \"${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%%):-%%n}.zsh\" ]]; then\\n  source \"${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%%):-%%n}.zsh\"\\nfi\\n' > ~/.local/share/qwert/hooks/before/powerlevel10k.sh",
   "printf 'source \"$(brew --prefix)/share/powerlevel10k/powerlevel10k.zsh-theme\"\\n[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh\\n' > ~/.local/share/qwert/hooks/init/powerlevel10k.sh",
-  "ln -sf ~/.qwert/p10k.zsh ~/.p10k.zsh"
+  "ln -sf ~/.qwert/zsh/p10k.zsh ~/.p10k.zsh"
 ]
 
 [undo]
 macos = [
+  "rm -f ~/.local/share/qwert/hooks/before/powerlevel10k.sh",
   "rm -f ~/.local/share/qwert/hooks/init/powerlevel10k.sh",
   "rm -f ~/.p10k.zsh"
 ]
