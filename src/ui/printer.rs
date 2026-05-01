@@ -32,8 +32,12 @@ fn colorize(color: &str, text: &str) -> String {
 
 /// ✓  tool_name   message
 pub fn ok(name: &str, msg: &str) {
+    ok_w(name, 12, msg);
+}
+
+pub fn ok_w(name: &str, width: usize, msg: &str) {
     let tick = colorize(SUCCESS, TICK);
-    let name_col = colorize(BOLD_WHITE, &format!("{:<12}", name));
+    let name_col = colorize(BOLD_WHITE, &format!("{:<width$}", name, width = width));
     let msg_col = colorize(DIM, msg);
     println!("  {}  {}  {}", tick, name_col, msg_col);
 }
@@ -47,8 +51,12 @@ pub fn installing(name: &str, msg: &str) {
 
 /// ✗  tool_name   message
 pub fn failed(name: &str, msg: &str) {
+    failed_w(name, 12, msg);
+}
+
+pub fn failed_w(name: &str, width: usize, msg: &str) {
     let cross = colorize(ERROR, CROSS);
-    let name_col = colorize(BOLD_WHITE, &format!("{:<12}", name));
+    let name_col = colorize(BOLD_WHITE, &format!("{:<width$}", name, width = width));
     let msg_col = colorize(ERROR, msg);
     println!("  {}  {}  {}", cross, name_col, msg_col);
 }

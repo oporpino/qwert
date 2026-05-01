@@ -441,6 +441,10 @@ pub fn setup_status_label(setup: &RecipeSetup, config_dir: &Path, recipe_name: &
 
 /// Check and print install + setup status in one line.
 pub fn status_with_setup_output(recipe: &Recipe, config_dir: &Path, declared: &str) {
+    status_with_setup_output_w(recipe, config_dir, declared, 12);
+}
+
+pub fn status_with_setup_output_w(recipe: &Recipe, config_dir: &Path, declared: &str, name_width: usize) {
     let name = &recipe.meta.name;
     let tag = printer::kind_tag_col(&recipe.meta.kind.to_string());
 
@@ -454,13 +458,12 @@ pub fn status_with_setup_output(recipe: &Recipe, config_dir: &Path, declared: &s
         .map(|s| setup_status_label(s, config_dir, name))
         .unwrap_or("—");
 
-    // Fixed-width columns: install (28) | kind (9) | setup (12) | declared
     let msg = format!("{:<28}{}  {:<12}  {}", install_str, tag, setup_str, declared);
 
     if install_ok {
-        printer::ok(name, &msg);
+        printer::ok_w(name, name_width, &msg);
     } else {
-        printer::failed(name, &msg);
+        printer::failed_w(name, name_width, &msg);
     }
 }
 
