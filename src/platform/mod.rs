@@ -150,6 +150,14 @@ pub fn version_of(binary: &str, flag: &str) -> Option<String> {
         })
 }
 
+/// Ensure qwert shell hooks are present in the user's rc file.
+/// No-op if hooks are already there.
+pub fn ensure_shell() -> anyhow::Result<()> {
+    let inst = installer();
+    let rc = shared::resolve_rc(&inst.shell_rc_candidates())?;
+    shared::ensure_shell_hooks(&rc)
+}
+
 /// Get the current platform ops implementation
 pub fn current() -> Box<dyn PlatformOps> {
     match detect() {

@@ -112,6 +112,65 @@ pub fn configure_shell_rc(candidates: &[PathBuf]) -> Result<PathBuf> {
     Ok(rc)
 }
 
+/// Inject qwert hooks only if not already present in the rc file.
+pub fn ensure_shell_hooks(rc_path: &Path) -> Result<()> {
+    let content = std::fs::read_to_string(rc_path).unwrap_or_default();
+    if content.contains("qwert hook init") {
+        return Ok(());
+    }
+    inject_shell_hooks(rc_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn ensure_shell_hooks_injects_when_missing() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_ensure_hooks_missing");
+        fs::create_dir_all(&dir).unwrap();
+        let rc = dir.join(".zshrc");
+        fs::write(&rc, "export FOO=bar\n").unwrap();
+        // act
+        ensure_shell_hooks(&rc).unwrap();
+        // assert
+        let content = fs::read_to_string(&rc).unwrap();
+        assert!(content.contains("qwert hook init"));
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn ensure_shell_hooks_skips_when_already_present() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_ensure_hooks_present");
+        fs::create_dir_all(&dir).unwrap();
+        let rc = dir.join(".zshrc");
+        fs::write(&rc, "eval \"$(qwert hook init)\" # qwert\n").unwrap();
+        // act
+        ensure_shell_hooks(&rc).unwrap();
+        // assert
+        let content = fs::read_to_string(&rc).unwrap();
+        assert_eq!(content.matches("qwert hook init").count(), 1);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn ensure_shell_hooks_creates_rc_when_missing() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_ensure_hooks_create");
+        fs::create_dir_all(&dir).unwrap();
+        let rc = dir.join(".zshrc_nonexistent");
+        // act
+        ensure_shell_hooks(&rc).unwrap();
+        // assert
+        let content = fs::read_to_string(&rc).unwrap();
+        assert!(content.contains("qwert hook init"));
+        fs::remove_dir_all(&dir).ok();
+    }
+}
+
 /// Install zsh and optionally bash completions on Linux distros.
 /// Skips a target if its parent directory does not exist on the system.
 pub fn install_completions_linux(zsh: &std::path::Path, bash: Option<&std::path::Path>) -> Result<()> {

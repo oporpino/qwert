@@ -59,6 +59,10 @@ pub fn use_tool(name: &str, version: Option<&str>, no_install: bool) -> Result<(
         }
     }
 
+    if let Err(e) = crate::platform::ensure_shell() {
+        printer::warning(&format!("could not update shell rc: {}", e));
+    }
+
     Ok(())
 }
 
