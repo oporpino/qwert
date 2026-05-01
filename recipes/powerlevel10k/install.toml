@@ -5,7 +5,8 @@ description = "Zsh theme with instant prompt and detailed git information"
 type = "qwert"
 depends = ["ohmyzsh"]
 
-# No [check] — p10k is a shell function, not a binary; install is idempotent via brew list guard
+[check]
+cmd = "brew list powerlevel10k 2>/dev/null"
 
 [install]
 macos = "brew list powerlevel10k &>/dev/null || brew install romkatv/powerlevel10k/powerlevel10k"

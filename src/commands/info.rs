@@ -41,9 +41,14 @@ pub fn run(name: &str) -> Result<()> {
             printer::field("kind", &printer::kind_tag(&meta.kind.to_string()));
 
             if let Some(check) = &recipe.check {
-                let cmd = match &check.version_flag {
-                    Some(flag) => format!("{} {}", check.command, flag),
-                    None => check.command.clone(),
+                let cmd = if let Some(cmd_str) = &check.cmd {
+                    cmd_str.clone()
+                } else {
+                    let base = check.command.as_deref().unwrap_or("");
+                    match &check.version_flag {
+                        Some(flag) => format!("{} {}", base, flag),
+                        None => base.to_string(),
+                    }
                 };
                 printer::field("check", &cmd);
             }

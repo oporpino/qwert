@@ -44,8 +44,9 @@ impl std::fmt::Display for RecipeKind {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RecipeCheck {
-    pub command: String,
+    pub command: Option<String>,
     pub version_flag: Option<String>,
+    pub cmd: Option<String>,
 }
 
 /// A single command string or an ordered list of commands.

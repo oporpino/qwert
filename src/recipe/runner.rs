@@ -15,18 +15,22 @@ pub enum RunResult {
 
 /// Check if a recipe is already installed
 pub fn is_installed(recipe: &Recipe) -> bool {
-    if let Some(check) = &recipe.check {
-        platform::which(&check.command)
-    } else {
-        false
+    let Some(check) = &recipe.check else { return false };
+    if let Some(cmd) = &check.cmd {
+        return platform::run_cmd_capture(cmd).is_ok();
     }
+    if let Some(command) = &check.command {
+        return platform::which(command);
+    }
+    false
 }
 
 /// Get the installed version of a recipe
 pub fn installed_version(recipe: &Recipe) -> Option<String> {
     let check = recipe.check.as_ref()?;
+    let command = check.command.as_deref()?;
     let flag = check.version_flag.as_deref()?;
-    platform::version_of(&check.command, flag)
+    platform::version_of(command, flag)
 }
 
 /// Package name to pass to the adapter
@@ -466,6 +470,43 @@ mod tests {
     use crate::recipe::schema::{RecipeMeta, RecipeKind, RecipeCheck, Commands};
     use std::fs;
 
+    fn make_recipe_check_cmd(cmd: &str) -> Recipe {
+        let mut r = make_recipe_with_setup(None);
+        r.check = Some(RecipeCheck { command: None, version_flag: None, cmd: Some(cmd.into()) });
+        r
+    }
+
+    #[test]
+    fn is_installed_via_cmd_returns_true_when_exits_zero() {
+        // arrange
+        let recipe = make_recipe_check_cmd("true");
+        // act
+        let result = is_installed(&recipe);
+        // assert
+        assert!(result);
+    }
+
+    #[test]
+    fn is_installed_via_cmd_returns_false_when_exits_nonzero() {
+        // arrange
+        let recipe = make_recipe_check_cmd("false");
+        // act
+        let result = is_installed(&recipe);
+        // assert
+        assert!(!result);
+    }
+
+    #[test]
+    fn is_installed_returns_false_when_no_check() {
+        // arrange
+        let mut recipe = make_recipe_with_setup(None);
+        recipe.check = None;
+        // act
+        let result = is_installed(&recipe);
+        // assert
+        assert!(!result);
+    }
+
     fn make_recipe_with_setup(setup: Option<RecipeSetup>) -> Recipe {
         Recipe {
             meta: RecipeMeta {
@@ -476,7 +517,7 @@ mod tests {
                 depends: vec![],
                 pkg: None,
             },
-            check: Some(RecipeCheck { command: "test-nonexistent-binary".into(), version_flag: None }),
+            check: Some(RecipeCheck { command: Some("test-nonexistent-binary".into()), version_flag: None, cmd: None }),
             install: None,
             upgrade: None,
             uninstall: None,

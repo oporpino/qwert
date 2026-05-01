@@ -28,7 +28,7 @@ fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<Setup
     });
 
     let check = install.as_ref().and_then(|i| i.check.clone()).or_else(|| {
-        Some(RecipeCheck { command: name.to_string(), version_flag: None })
+        Some(RecipeCheck { command: Some(name.to_string()), version_flag: None, cmd: None })
     });
 
     let recipe_setup = setup.map(|s| RecipeSetup {
@@ -194,7 +194,7 @@ symlink = true
         let result = find("git", &dir).unwrap();
         // assert
         let check = result.check.unwrap();
-        assert_eq!(check.command, "git");
+        assert_eq!(check.command, Some("git".to_string()));
         assert!(check.version_flag.is_none());
         fs::remove_dir_all(&dir).ok();
     }
