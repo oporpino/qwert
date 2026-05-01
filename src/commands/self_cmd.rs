@@ -45,6 +45,12 @@ pub fn install() -> Result<()> {
         bin_path.display()
     );
 
+    if matches!(platform::detect(), platform::Platform::MacOS) && !platform::which("brew") {
+        printer::installing("brew", "installing Homebrew...");
+        platform::run_cmd(r#"/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)""#)?;
+        printer::ok("brew", "installed");
+    }
+
     let symlink = installer.symlink_path();
     shared::create_symlink_sudo(&bin_path, &symlink)?;
     printer::ok("symlink", &symlink.to_string_lossy());
