@@ -25,7 +25,7 @@ pub fn run() {
 
     printer::h2("Config");
     printer::command("config edit",              "open qwert.yml in $EDITOR");
-    printer::command("use script init --path p", "add script to zsh init");
-    printer::command("use script end  --path p", "add script to zsh end");
+    printer::command("use script init    --path p", "add script to zsh init");
+    printer::command("use script prepare --path p", "add script to zsh prepare");
     printer::blank();
 }

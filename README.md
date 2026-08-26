@@ -35,10 +35,10 @@ tools:
   - lvim
 
 hooks:
-  before:
-    - ~/.qwert/zsh/init.sh
+  prepare:
+    - ~/.qwert/zsh/prepare.sh
   init:
-    - ~/.qwert/zsh/end.sh
+    - ~/.qwert/zsh/init.sh
 ```
 
 Save `~/.qwert/` in a private repository. On a new machine, clone it and run `qwert apply`.

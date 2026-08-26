@@ -97,10 +97,10 @@ pub fn inject_shell_hooks(rc_path: &Path) -> Result<()> {
         .map(|l| format!("{}\n", l))
         .collect();
 
-    let before_block = "# qwert\neval \"$(qwert hook before)\"\n\n";
+    let prepare_block = "# qwert\neval \"$(qwert hook prepare)\"\n\n";
     let init_line = "\neval \"$(qwert hook init)\" # qwert\n";
 
-    std::fs::write(rc_path, format!("{}{}{}", before_block, stripped.trim_start(), init_line))?;
+    std::fs::write(rc_path, format!("{}{}{}", prepare_block, stripped.trim_start(), init_line))?;
     Ok(())
 }
 

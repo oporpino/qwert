@@ -72,7 +72,7 @@ pub struct QwertConfig {
 pub struct Hooks {
     /// Runs at the very top of .zshrc — only for things that must come first (e.g. p10k instant prompt)
     #[serde(default)]
-    pub before: Vec<String>,
+    pub prepare: Vec<String>,
 
     /// Runs at the bottom of .zshrc — where most shell initialization happens
     #[serde(default)]
@@ -144,7 +144,7 @@ impl QwertConfig {
 
     pub fn add_hook(&mut self, hook: &str, path: &str) {
         let scripts = match hook {
-            "before" => &mut self.hooks.before,
+            "prepare" => &mut self.hooks.prepare,
             "init" => &mut self.hooks.init,
             _ => return,
         };
@@ -268,11 +268,11 @@ mod tests {
     fn add_hook_ignores_duplicate_path() {
         // arrange
         let mut config = QwertConfig::default();
-        config.add_hook("before", "~/env.sh");
+        config.add_hook("prepare", "~/env.sh");
         // act
-        config.add_hook("before", "~/env.sh");
+        config.add_hook("prepare", "~/env.sh");
         // assert
-        assert_eq!(config.hooks.before.len(), 1);
+        assert_eq!(config.hooks.prepare.len(), 1);
     }
 
     #[test]
@@ -282,7 +282,7 @@ mod tests {
         // act
         config.add_hook("unknown", "~/script.sh");
         // assert — no panic, no side effects
-        assert!(config.hooks.before.is_empty());
+        assert!(config.hooks.prepare.is_empty());
         assert!(config.hooks.init.is_empty());
     }
 

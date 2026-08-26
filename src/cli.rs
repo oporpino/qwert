@@ -92,9 +92,9 @@ pub enum Command {
         name: String,
     },
 
-    /// Output shell hook for before or init phase (eval in .zshrc)
+    /// Output shell hook for prepare or init phase (eval in .zshrc)
     Hook {
-        /// Phase: before or init
+        /// Phase: prepare or init
         phase: String,
     },
 
@@ -151,9 +151,9 @@ pub enum UseTarget {
     #[command(external_subcommand)]
     Tool(Vec<String>),
 
-    /// Add a script to zsh before or init hooks
+    /// Add a script to zsh prepare or init hooks
     Script {
-        /// Hook: before or init
+        /// Hook: prepare or init
         hook: String,
         /// Path to the script
         #[arg(long)]

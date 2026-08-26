@@ -82,7 +82,7 @@ qwert reinstall <tool>
 qwert self upgrade
 qwert self reinstall
 qwert recipes update
-qwert hook init / hook end   # output shell hooks (eval'd in .zshrc)
+qwert hook prepare / hook init   # output shell hooks (eval'd in .zshrc)
 qwert completions <shell>    # output completion script
 qwert doctor
 qwert config edit
@@ -165,10 +165,10 @@ tools:
   - lvim
 
 hooks:
+  prepare:
+    - ~/.qwert/zsh/prepare.sh
   init:
     - ~/.qwert/zsh/init.sh
-  end:
-    - ~/.qwert/zsh/end.sh
 ```
 
 ## State tracking

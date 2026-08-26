@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::config::qwert_yml;
 
 pub fn run(phase: &str) -> Result<()> {
-    if phase != "before" && phase != "init" {
+    if phase != "prepare" && phase != "init" {
         return Ok(());
     }
 
@@ -32,7 +32,7 @@ pub fn run(phase: &str) -> Result<()> {
     let config = qwert_yml::QwertConfig::load(&manifest_path)?;
 
     let hooks = match phase {
-        "before" => &config.hooks.before,
+        "prepare" => &config.hooks.prepare,
         "init" => &config.hooks.init,
         _ => return Ok(()),
     };
