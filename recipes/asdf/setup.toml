@@ -1,12 +1,12 @@
-to = "~/.qwert/hooks/init/asdf.sh"
+to = "~/.local/share/qwert/hooks/init/asdf.sh"
 
 # macOS: oh-my-zsh asdf plugin handles shell integration (add asdf to plugins list).
-# Debian: writes shell fragment to ~/.qwert/hooks/init/ — sourced automatically by qwert hook init.
+# Debian: writes shell fragment to ~/.local/share/qwert/hooks/init/ — sourced automatically by qwert hook init.
 debian = [
-  "mkdir -p ~/.qwert/hooks/init",
-  "printf '. \"$HOME/.asdf/asdf.sh\"\\n. \"$HOME/.asdf/completions/asdf.bash\"\\n' > ~/.qwert/hooks/init/asdf.sh"
+  "mkdir -p ~/.local/share/qwert/hooks/init",
+  "printf '. \"$HOME/.asdf/asdf.sh\"\\n. \"$HOME/.asdf/completions/asdf.bash\"\\n' > ~/.local/share/qwert/hooks/init/asdf.sh"
 ]
 
 [undo]
-debian = "rm -f ~/.qwert/hooks/init/asdf.sh"
+debian = "rm -f ~/.local/share/qwert/hooks/init/asdf.sh"
 
