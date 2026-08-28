@@ -1,0 +1,10 @@
+[meta]
+name = "opencode"
+version = "1.0.0"
+description = "AI coding agent for the terminal"
+type = "brew"
+pkg = "anomalyco/tap/opencode"
+
+[check]
+command = "opencode"
+version_flag = "--version"

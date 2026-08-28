@@ -1,0 +1,10 @@
+to = "~/.config/opencode"
+macos = [
+  "ln -sfn ~/.qwert/ia/skills ~/.config/opencode/skills",
+  "ln -sfn ~/.qwert/ia/commands ~/.config/opencode/commands",
+]
+
+[undo]
+macos = [
+  "rm -f ~/.config/opencode/skills ~/.config/opencode/commands",
+]
