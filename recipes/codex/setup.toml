@@ -1,10 +1,15 @@
-to = "~/.agents"
+to = "~/.codex"
 macos = [
+  "mkdir -p ~/.codex",
+  "mkdir -p ~/.qwert/codex",
+  "if [ -f ~/.codex/config.toml ] && [ ! -L ~/.codex/config.toml ] && [ ! -f ~/.qwert/codex/config.toml ]; then mv ~/.codex/config.toml ~/.qwert/codex/config.toml; fi",
+  "touch ~/.qwert/codex/config.toml",
+  "ln -sfn ~/.qwert/codex/config.toml ~/.codex/config.toml",
   "mkdir -p ~/.agents",
   "ln -sfn ~/.qwert/ia/skills ~/.agents/skills",
 ]
 
 [undo]
 macos = [
-  "rm -f ~/.agents/skills",
+  "rm -f ~/.codex/config.toml ~/.agents/skills",
 ]

@@ -1,10 +1,14 @@
 to = "~/.openclaw"
 macos = [
   "mkdir -p ~/.openclaw",
+  "mkdir -p ~/.qwert/openclaw",
+  "if [ -f ~/.openclaw/openclaw.json ] && [ ! -L ~/.openclaw/openclaw.json ] && [ ! -f ~/.qwert/openclaw/openclaw.json ]; then mv ~/.openclaw/openclaw.json ~/.qwert/openclaw/openclaw.json; fi",
+  "touch ~/.qwert/openclaw/openclaw.json",
+  "ln -sfn ~/.qwert/openclaw/openclaw.json ~/.openclaw/openclaw.json",
   "ln -sfn ~/.qwert/ia/skills ~/.openclaw/skills",
 ]
 
 [undo]
 macos = [
-  "rm -f ~/.openclaw/skills",
+  "rm -f ~/.openclaw/openclaw.json ~/.openclaw/skills",
 ]

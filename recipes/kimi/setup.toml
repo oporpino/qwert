@@ -1,10 +1,15 @@
-to = "~/.config/agents"
+to = "~/.kimi"
 macos = [
+  "mkdir -p ~/.kimi",
+  "mkdir -p ~/.qwert/kimi",
+  "if [ -f ~/.kimi/config.toml ] && [ ! -L ~/.kimi/config.toml ] && [ ! -f ~/.qwert/kimi/config.toml ]; then mv ~/.kimi/config.toml ~/.qwert/kimi/config.toml; fi",
+  "touch ~/.qwert/kimi/config.toml",
+  "ln -sfn ~/.qwert/kimi/config.toml ~/.kimi/config.toml",
   "mkdir -p ~/.config/agents",
   "ln -sfn ~/.qwert/ia/skills ~/.config/agents/skills",
 ]
 
 [undo]
 macos = [
-  "rm -f ~/.config/agents/skills",
+  "rm -f ~/.kimi/config.toml ~/.config/agents/skills",
 ]
