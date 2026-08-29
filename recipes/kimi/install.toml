@@ -9,13 +9,13 @@ command = "kimi"
 version_flag = "--version"
 
 [install]
-macos = "curl -LsSf https://code.kimi.com/install.sh | bash"
-debian = "curl -LsSf https://code.kimi.com/install.sh | bash"
+macos = "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash"
+debian = "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash"
 
 [upgrade]
-macos = "uv tool upgrade kimi-cli --no-cache"
-debian = "uv tool upgrade kimi-cli --no-cache"
+macos = "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash"
+debian = "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash"
 
 [uninstall]
-macos = "uv tool uninstall kimi-cli"
-debian = "uv tool uninstall kimi-cli"
+macos = "rm -rf ~/.kimi-code"
+debian = "rm -rf ~/.kimi-code"
