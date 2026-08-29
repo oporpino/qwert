@@ -1,0 +1,21 @@
+[meta]
+name = "openclaw"
+version = "1.0.0"
+description = "OpenClaw — AI assistant gateway for your devices and chats"
+type = "qwert"
+
+[check]
+command = "openclaw"
+version_flag = "--version"
+
+[install]
+macos = "curl -fsSL https://openclaw.ai/install.sh | bash"
+debian = "curl -fsSL https://openclaw.ai/install.sh | bash"
+
+[upgrade]
+macos = "openclaw update"
+debian = "openclaw update"
+
+[uninstall]
+macos = "openclaw uninstall"
+debian = "openclaw uninstall"

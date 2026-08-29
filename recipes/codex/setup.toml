@@ -1,0 +1,10 @@
+to = "~/.agents"
+macos = [
+  "mkdir -p ~/.agents",
+  "ln -sfn ~/.qwert/ia/skills ~/.agents/skills",
+]
+
+[undo]
+macos = [
+  "rm -f ~/.agents/skills",
+]

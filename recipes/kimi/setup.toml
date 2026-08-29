@@ -1,0 +1,10 @@
+to = "~/.config/agents"
+macos = [
+  "mkdir -p ~/.config/agents",
+  "ln -sfn ~/.qwert/ia/skills ~/.config/agents/skills",
+]
+
+[undo]
+macos = [
+  "rm -f ~/.config/agents/skills",
+]

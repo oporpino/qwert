@@ -1,0 +1,10 @@
+[meta]
+name = "codex"
+version = "1.0.0"
+description = "OpenAI Codex CLI — coding agent for the terminal"
+type = "brew"
+pkg = "codex"
+
+[check]
+command = "codex"
+version_flag = "--version"

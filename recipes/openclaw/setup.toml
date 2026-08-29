@@ -1,0 +1,10 @@
+to = "~/.openclaw"
+macos = [
+  "mkdir -p ~/.openclaw",
+  "ln -sfn ~/.qwert/ia/skills ~/.openclaw/skills",
+]
+
+[undo]
+macos = [
+  "rm -f ~/.openclaw/skills",
+]
