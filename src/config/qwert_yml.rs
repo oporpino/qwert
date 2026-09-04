@@ -15,6 +15,8 @@ pub enum ToolEntry {
 }
 
 impl ToolEntry {
+    // Retained for the declared version pin (used by tests and future upgrade logic).
+    #[allow(dead_code)]
     fn version(&self) -> &str {
         match self {
             ToolEntry::Simple(v) => v.as_str(),
@@ -259,6 +261,7 @@ impl QwertConfig {
     }
 
     /// Version for a catalog tool. Defaults to "latest".
+    #[allow(dead_code)]
     pub fn version_of(&self, _profile: &str, name: &str) -> &str {
         self.tools.get(name).map(|e| e.version()).unwrap_or("latest")
     }

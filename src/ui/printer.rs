@@ -138,13 +138,14 @@ pub fn summary_phase(label: &str, done: usize, total: usize, failed: usize) {
 
 // --- Kind tag ---
 
-/// "[brew]" colored by adapter type
+/// "[brew]" colored by manager — qwert recipe, platform default, or config-only.
 pub fn kind_tag(kind: &str) -> String {
     match kind {
+        "qwert" => colorize(ORANGE, &format!("[{}]", kind)),
         "brew" => colorize(BRIGHT_BLUE, &format!("[{}]", kind)),
         "apt" | "pacman" => colorize(BRIGHT_YELLOW, &format!("[{}]", kind)),
-        // qwert recipes run custom commands — no package manager
-        "qwert" | "custom" => colorize(ORANGE, &format!("[custom]")),
+        "default" => colorize(DIM, &format!("[{}]", kind)),
+        "config only" => colorize(BRIGHT_GREEN, &format!("[{}]", kind)),
         _ => colorize(DIM, &format!("[{}]", kind)),
     }
 }

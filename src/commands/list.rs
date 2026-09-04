@@ -8,7 +8,7 @@ struct Row {
     name: String,
     status: String,
     ok: bool,
-    kind: String,
+    manager: String,
     setup: String,
     origin: String,
     version: String,
@@ -32,8 +32,8 @@ fn pad(s: &str, w: usize) -> String {
     format!("{}{}", s, " ".repeat(w - n))
 }
 
-/// Maximum visible width per column (NAME, STATUS, TYPE, SETUP, ORIGIN, VERSION, PROFILE).
-const COL_MAX: [usize; 7] = [16, 42, 8, 14, 8, 12, 20];
+/// Maximum visible width per column (NAME, STATUS, MANAGER, SETUP, ORIGIN, VERSION, PROFILE).
+const COL_MAX: [usize; 7] = [16, 14, 13, 14, 8, 28, 20];
 
 pub fn run(all: bool) -> Result<()> {
     let manifest_path = qwert_yml::manifest_path();
@@ -65,7 +65,6 @@ pub fn run(all: bool) -> Result<()> {
     let mut rows: Vec<Row> = Vec::new();
 
     for name in &names {
-        let version = config.version_of(&profile, name).to_string();
         let profiles = if all {
             config.profiles_of_tool(name).join(",")
         } else {
@@ -78,7 +77,6 @@ pub fn run(all: bool) -> Result<()> {
             .map(|s| std::path::PathBuf::from(qwert_yml::expand_tilde(s)));
         match &recipe {
             Some(recipe) => {
-                let setup_only = recipe.setup_only;
                 let origin = if recipe.local {
                     "[local]".to_string()
                 } else {
@@ -90,33 +88,40 @@ pub fn run(all: bool) -> Result<()> {
                     .map(|s| runner::setup_status_label(s, source.as_deref()).to_string())
                     .unwrap_or_else(|| "—".to_string());
 
-                let (status, ok, kind) = if setup_only {
-                    ("n/a".to_string(), true, "—".to_string())
+                // setup_only → "config only"; any recipe present → managed by qwert
+                let manager = if recipe.setup_only {
+                    "config only".to_string()
                 } else {
-                    let kind = recipe.meta.kind.to_string();
-                    if runner::is_installed(recipe) {
-                        (runner::version_msg("installed", runner::installed_version(recipe)), true, kind)
-                    } else {
-                        ("not installed".to_string(), false, kind)
-                    }
+                    "qwert".to_string()
                 };
-                rows.push(Row { name: name.clone(), status, ok, kind, setup, origin, version, profiles });
+
+                let (status, ok, version) = if recipe.setup_only {
+                    ("n/a".to_string(), true, "—".to_string())
+                } else if runner::is_installed(recipe) {
+                    (
+                        "installed".to_string(),
+                        true,
+                        runner::installed_version(recipe).unwrap_or_else(|| "—".to_string()),
+                    )
+                } else {
+                    ("not installed".to_string(), false, "—".to_string())
+                };
+                rows.push(Row { name: name.clone(), status, ok, manager, setup, origin, version, profiles });
             }
             None => {
-                // No recipe — status from the platform, no type/origin.
+                // No recipe — managed by the platform's default package manager.
                 let installed = crate::platform::which(name);
-                let status = if installed {
-                    format!("installed{}", crate::platform::version_of(name, "--version")
-                        .map(|v| format!(" ({})", v))
-                        .unwrap_or_default())
+                let version = if installed {
+                    crate::platform::version_of(name, "--version").unwrap_or_else(|| "—".to_string())
                 } else {
-                    "not installed".to_string()
+                    "—".to_string()
                 };
+                let status = if installed { "installed".to_string() } else { "not installed".to_string() };
                 rows.push(Row {
                     name: name.clone(),
                     status,
                     ok: installed,
-                    kind: "—".to_string(),
+                    manager: "default".to_string(),
                     setup: "—".to_string(),
                     origin: "—".to_string(),
                     version,
@@ -126,32 +131,23 @@ pub fn run(all: bool) -> Result<()> {
         }
     }
 
-    // Column widths (visible char count), capped so long content is truncated
-    // instead of pushing the next column out of alignment.
+    // Column widths (visible char count), driven by the largest content in each
+    // column, capped so long content is truncated instead of pushing the next
+    // column out of alignment.
     let mut w = [0usize; 7];
     for r in &rows {
         w[0] = w[0].max(r.name.chars().count());
         w[1] = w[1].max(r.status.chars().count());
-        w[2] = w[2].max(r.kind.chars().count() + 2);
+        w[2] = w[2].max(r.manager.chars().count() + 2);
         w[3] = w[3].max(r.setup.chars().count());
         w[4] = w[4].max(r.origin.chars().count());
         w[5] = w[5].max(r.version.chars().count());
         w[6] = w[6].max(r.profiles.chars().count());
     }
+    let header = ["NAME", "STATUS", "MANAGER", "SETUP", "ORIGIN", "VERSION", "PROFILE"];
     for i in 0..7 {
-        w[i] = w[i].min(COL_MAX[i]);
+        w[i] = w[i].min(COL_MAX[i]).max(header[i].chars().count());
     }
-    w[0] = w[0].max(4);
-    w[1] = w[1].max(6);
-    w[2] = w[2].max(4);
-    w[3] = w[3].max(5);
-    w[4] = w[4].max(6);
-    w[5] = w[5].max(7);
-    w[6] = w[6].max(7);
-
-    let header = [
-        "NAME", "STATUS", "TYPE", "SETUP", "ORIGIN", "VERSION", "PROFILE",
-    ];
 
     printer::blank();
     if all {
@@ -161,19 +157,11 @@ pub fn run(all: bool) -> Result<()> {
     }
     printer::blank();
 
-    // Header row.
+    // Header row — same 2-space indent as the data rows.
     let mut head = String::new();
     for (i, h) in header.iter().enumerate() {
-        if i == 0 {
-            head.push_str(&printer::bold_text(&pad(h, w[i])));
-        } else {
-            head.push(' ');
-            head.push(' ');
-            head.push_str(&printer::bold_text(&pad(h, w[i])));
-        }
-        if i == 6 {
-            break;
-        }
+        head.push_str("  ");
+        head.push_str(&printer::bold_text(&pad(h, w[i])));
     }
     println!("{}", head);
     let rule = format!("  {}", "—".repeat(w.iter().sum::<usize>() + 14));
@@ -187,14 +175,14 @@ pub fn run(all: bool) -> Result<()> {
             if r.ok { printer::success_text(&p) } else { printer::error_text(&p) }
         };
         let kind = {
-            // Truncate the kind label to the column width, keeping the ANSI tag
+            // Truncate the manager label to the column width, keeping the ANSI tag
             // around only the visible portion.
-            let kind_vis = r.kind.chars().count() + 2;
+            let kind_vis = r.manager.chars().count() + 2;
             let (label, extra) = if kind_vis > w[2] {
                 // width cannot hold even one tag — fall back to plain text
-                (pad(&r.kind, w[2]), String::new())
+                (pad(&r.manager, w[2]), String::new())
             } else {
-                (r.kind.clone(), " ".repeat(w[2] - kind_vis))
+                (r.manager.clone(), " ".repeat(w[2] - kind_vis))
             };
             format!("{}{}", printer::kind_tag(&label), extra)
         };
