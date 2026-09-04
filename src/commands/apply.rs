@@ -30,9 +30,12 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
     // Tools active for this machine's profile.
     let active_names = config.tool_names_for_profile(&profile);
 
-    let mut done = 0;
-    let mut failed = 0;
+    let mut install_done = 0;
+    let mut install_failed = 0;
+    let mut setup_done = 0;
+    let mut setup_failed = 0;
     let mut orphan_done = 0;
+    let mut orphan_failed = 0;
 
     // ---- Phase 1: uninstall orphans (installed but no longer active) ----
     if tool.is_none() {
@@ -66,7 +69,7 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                         state.mark_removed(name);
                         orphan_done += 1;
                     } else {
-                        failed += 1;
+                        orphan_failed += 1;
                     }
                 }
                 None => {
@@ -78,12 +81,12 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                                 orphan_done += 1;
                             } else {
                                 printer::failed(name, "uninstall failed — remove manually");
-                                failed += 1;
+                                orphan_failed += 1;
                             }
                         }
                         None => {
                             printer::failed(name, "no recipe and no package manager — remove manually");
-                            failed += 1;
+                            orphan_failed += 1;
                         }
                     }
                 }
@@ -131,16 +134,16 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                 if recipe.setup_only {
                     // Setup-only recipes (e.g. local agents/skills) skip install.
                     printer::ok(name, "setup-only (no package)");
-                    done += 1;
+                    install_done += 1;
                     continue;
                 }
                 let installed = runner::install_with_output(&recipe, &recipes_dir);
                 if installed {
                     let version = runner::installed_version(&recipe);
                     state.mark_installed(name, version.as_deref());
-                    done += 1;
+                    install_done += 1;
                 } else {
-                    failed += 1;
+                    install_failed += 1;
                 }
             }
             None => {
@@ -148,7 +151,7 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                     let version = crate::platform::version_of(name, "--version");
                     state.mark_installed(name, version.as_deref());
                     printer::ok(name, "already installed");
-                    done += 1;
+                    install_done += 1;
                 } else {
                     match crate::adapters::default_adapter() {
                         Some(adapter) => {
@@ -156,15 +159,15 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                                 let version = crate::platform::version_of(name, "--version");
                                 state.mark_installed(name, version.as_deref());
                                 printer::ok(name, "installed");
-                                done += 1;
+                                install_done += 1;
                             } else {
                                 printer::failed(name, "install failed");
-                                failed += 1;
+                                install_failed += 1;
                             }
                         }
                         None => {
                             printer::failed(name, "no recipe and no package manager available");
-                            failed += 1;
+                            install_failed += 1;
                         }
                     }
                 }
@@ -182,19 +185,28 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
         let source = config
             .config_source_for(&profile, name)
             .map(|s| std::path::PathBuf::from(qwert_yml::expand_tilde(s)));
-        match index::find(name, &recipes_dir) {
+        let has_setup = match index::find(name, &recipes_dir) {
             Some(recipe) => {
                 if recipe.setup.is_some() {
-                    runner::setup_with_output(&recipe, source.as_deref());
+                    runner::setup_with_output(&recipe, source.as_deref())
                 } else if let Some(inline) = config.inline_setup_of(name) {
-                    runner::setup_inline_with_output(name, inline, source.as_deref());
+                    runner::setup_inline_with_output(name, inline, source.as_deref())
+                } else {
+                    true
                 }
             }
             None => {
                 if let Some(inline) = config.inline_setup_of(name) {
-                    runner::setup_inline_with_output(name, inline, source.as_deref());
+                    runner::setup_inline_with_output(name, inline, source.as_deref())
+                } else {
+                    true
                 }
             }
+        };
+        if has_setup {
+            setup_done += 1;
+        } else {
+            setup_failed += 1;
         }
     }
 
@@ -202,9 +214,21 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
 
     state.save(&state_path)?;
     if orphan_done > 0 {
-        printer::info(&format!("{} orphan(s) uninstalled", orphan_done));
+        let msg = if orphan_failed > 0 {
+            format!("{} orphan(s) uninstalled, {} failed", orphan_done, orphan_failed)
+        } else {
+            format!("{} orphan(s) uninstalled", orphan_done)
+        };
+        printer::info(&msg);
     }
-    printer::summary(done, tools.len(), failed);
+    let install_total = install_done + install_failed;
+    let setup_total = setup_done + setup_failed;
+    if install_total > 0 {
+        printer::summary_phase("install", install_done, install_total, install_failed);
+    }
+    if setup_total > 0 {
+        printer::summary_phase("setup", setup_done, setup_total, setup_failed);
+    }
 
     Ok(())
 }

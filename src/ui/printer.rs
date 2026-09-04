@@ -124,17 +124,16 @@ pub fn command(cmd: &str, description: &str) {
 
 // --- Summary line ---
 
-/// "  5/6 done  •  1 failed"
-pub fn summary(done: usize, total: usize, failed: usize) {
-    println!();
+/// "  install: 10/11 done • 1 failed" — phase-scoped counter line (no extra blank).
+pub fn summary_phase(label: &str, done: usize, total: usize, failed: usize) {
     let done_str = colorize(SUCCESS, &format!("{}/{} done", done, total));
+    let head = colorize(BOLD_WHITE, &format!("{}:", label));
     if failed > 0 {
         let fail_str = colorize(ERROR, &format!("{} failed", failed));
-        println!("  {}  {}  {}", done_str, colorize(DIM, BULLET), fail_str);
+        println!("  {}  {}  {}  {}", head, done_str, colorize(DIM, BULLET), fail_str);
     } else {
-        println!("  {}", done_str);
+        println!("  {}  {}", head, done_str);
     }
-    println!();
 }
 
 // --- Kind tag ---
