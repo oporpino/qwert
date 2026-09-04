@@ -42,6 +42,10 @@ pub fn dim_text(s: &str) -> String {
     colorize(DIM, s)
 }
 
+pub fn orange_text(s: &str) -> String {
+    colorize(ORANGE, s)
+}
+
 pub fn bold_text(s: &str) -> String {
     colorize(BOLD_WHITE, s)
 }
@@ -64,7 +68,8 @@ pub fn ok_w(name: &str, width: usize, msg: &str) {
 pub fn installing(name: &str, msg: &str) {
     let arrow = colorize(INFO, ARROW);
     let name_col = colorize(BOLD_WHITE, &format!("{:<12}", name));
-    println!("  {}  {}  {}", arrow, name_col, msg);
+    let msg_col = colorize(DIM, msg);
+    println!("  {}  {}  {}", arrow, name_col, msg_col);
 }
 
 /// ✗  tool_name   message
@@ -84,7 +89,7 @@ pub fn failed_w(name: &str, width: usize, msg: &str) {
 pub fn h1(title: &str) {
     if use_color() {
         println!("\n{}{}{}", BOLD_WHITE, title, RESET);
-        println!("{}{}{}", DIM, "─".repeat(title.len()), RESET);
+        println!("{}{}{}", ORANGE, "─".repeat(title.len()), RESET);
     } else {
         println!("\n{}", title);
         println!("{}", "─".repeat(title.len()));
@@ -114,7 +119,7 @@ pub fn error(msg: &str) {
 }
 
 pub fn bullet(msg: &str) {
-    println!("  {}  {}", colorize(DIM, BULLET), msg);
+    println!("  {}  {}", colorize(ORANGE, BULLET), colorize(DIM, msg));
 }
 
 /// "  use <tool>      declare a tool for this machine"
@@ -130,7 +135,7 @@ pub fn summary_phase(label: &str, done: usize, total: usize, failed: usize) {
     let head = colorize(BOLD_WHITE, &format!("{}:", label));
     if failed > 0 {
         let fail_str = colorize(ERROR, &format!("{} failed", failed));
-        println!("  {}  {}  {}  {}", head, done_str, colorize(DIM, BULLET), fail_str);
+        println!("  {}  {}  {}  {}", head, done_str, colorize(ORANGE, BULLET), fail_str);
     } else {
         println!("  {}  {}", head, done_str);
     }
@@ -143,9 +148,9 @@ pub fn kind_tag(kind: &str) -> String {
     match kind {
         "qwert" => colorize(ORANGE, &format!("[{}]", kind)),
         "brew" => colorize(BRIGHT_BLUE, &format!("[{}]", kind)),
-        "apt" | "pacman" => colorize(BRIGHT_YELLOW, &format!("[{}]", kind)),
+        "apt" | "pacman" => colorize(ORANGE, &format!("[{}]", kind)),
         "default" => colorize(DIM, &format!("[{}]", kind)),
-        "config only" => colorize(BRIGHT_GREEN, &format!("[{}]", kind)),
+        "config only" => colorize(LIME, &format!("[{}]", kind)),
         _ => colorize(DIM, &format!("[{}]", kind)),
     }
 }
@@ -161,9 +166,9 @@ pub fn kind_tag_col(kind: &str) -> String {
 /// "[local]" or "[remote]" tag — recipe origin
 pub fn origin_tag(local: bool) -> String {
     if local {
-        colorize(BRIGHT_GREEN, "[local]")
+        colorize(LIME, "[local]")
     } else {
-        colorize(DIM, "[remote]")
+        colorize(ORANGE, "[remote]")
     }
 }
 
@@ -174,12 +179,12 @@ pub fn search_result(name: &str, kind: &str, description: &str, version: Option<
     let name_col = colorize(BOLD_WHITE, &format!("{:<20}", name));
     let kind_col = kind_tag_col(kind);
     let ver = version
-        .map(|v| colorize(DIM, &format!("  {}", v)))
+        .map(|v| colorize(PINK, &format!("  {}", v)))
         .unwrap_or_default();
     if description.is_empty() {
         println!("  {}  {}{}", name_col, kind_col, ver);
     } else {
-        println!("  {}  {}  {}{}", name_col, kind_col, description, ver);
+        println!("  {}  {}  {}{}", name_col, kind_col, colorize(DIM, description), ver);
     }
 }
 

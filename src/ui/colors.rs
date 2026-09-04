@@ -25,12 +25,18 @@ pub const BRIGHT_BLACK: &str = "\x1b[0;90m";
 pub const BRIGHT_GREEN: &str = "\x1b[0;92m";
 pub const BRIGHT_YELLOW: &str = "\x1b[0;93m";
 pub const BRIGHT_BLUE: &str = "\x1b[0;94m";
+pub const BRIGHT_MAGENTA: &str = "\x1b[0;95m";
 pub const BRIGHT_WHITE: &str = "\x1b[0;97m";
 pub const ORANGE: &str = "\x1b[38;5;208m";
 
+// Priority palette: roxo, laranja, verde limão, rosa choque + branco/preto
+pub const PURPLE: &str = BOLD_MAGENTA;      // roxo
+pub const PINK: &str = BRIGHT_MAGENTA;      // rosa choque
+pub const LIME: &str = BRIGHT_GREEN;        // verde limão
+
 // Semantic presets
-pub const INFO: &str = BOLD_BLUE;
-pub const SUCCESS: &str = BOLD_GREEN;
-pub const WARNING: &str = BOLD_YELLOW;
+pub const INFO: &str = PURPLE;              // setas/headings/info — roxo
+pub const SUCCESS: &str = LIME;             // ok/feito — verde limão
+pub const WARNING: &str = ORANGE;           // avisos — laranja
 pub const ERROR: &str = BOLD_RED;
-pub const DIM: &str = BRIGHT_BLACK;
+pub const DIM: &str = PINK;                 // texto secundário — rosa choque
