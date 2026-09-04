@@ -35,13 +35,18 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
     let mut failed = 0;
     let mut orphan_done = 0;
 
-    // Uninstall orphans: installed but no longer active for this machine.
+    // ---- Phase 1: uninstall orphans (installed but no longer active) ----
     if tool.is_none() {
         let orphans: Vec<String> = state
             .orphans(&active_names)
             .into_iter()
             .map(|s| s.to_string())
             .collect();
+
+        if !orphans.is_empty() {
+            printer::h2("Uninstalling orphans");
+            printer::blank();
+        }
 
         for name in &orphans {
             if dry_run {
@@ -85,6 +90,9 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                 }
             }
         }
+        if !orphans.is_empty() {
+            printer::blank();
+        }
     }
 
     let tools: Vec<&str> = if let Some(t) = tool {
@@ -98,20 +106,36 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
         return Ok(());
     }
 
-    for name in &tools {
-        if dry_run {
-            printer::bullet(&format!("would install: {}", name));
-            printer::bullet(&format!("would setup: {}", name));
-            continue;
+    // ---- Phase 2: install all tools ----
+    if dry_run {
+        printer::h2("Would install");
+        printer::blank();
+        for name in &tools {
+            printer::bullet(&format!("{}", name));
         }
+        printer::blank();
+        printer::h2("Would setup");
+        printer::blank();
+        for name in &tools {
+            printer::bullet(&format!("{}", name));
+        }
+        printer::blank();
+        return Ok(());
+    }
+
+    printer::h2("Installing tools");
+    printer::blank();
+
+    for name in &tools {
         match index::find(name, &recipes_dir) {
             Some(recipe) => {
-                let installed = runner::install_with_output(&recipe, &recipes_dir);
-                if recipe.setup.is_some() {
-                    runner::setup_with_output(&recipe, &config_dir);
-                } else if let Some(inline) = config.setup_of(&profile, name) {
-                    runner::setup_inline_with_output(name, inline, &config_dir);
+                if recipe.setup_only {
+                    // Setup-only recipes (e.g. local agents/skills) skip install.
+                    printer::ok(name, "setup-only (no package)");
+                    done += 1;
+                    continue;
                 }
+                let installed = runner::install_with_output(&recipe, &recipes_dir);
                 if installed {
                     let version = runner::installed_version(&recipe);
                     state.mark_installed(name, version.as_deref());
@@ -145,7 +169,26 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                         }
                     }
                 }
-                // Run inline setup if defined
+            }
+        }
+    }
+
+    printer::blank();
+
+    // ---- Phase 3: setup all tools ----
+    printer::h2("Setting up tools");
+    printer::blank();
+
+    for name in &tools {
+        match index::find(name, &recipes_dir) {
+            Some(recipe) => {
+                if recipe.setup.is_some() {
+                    runner::setup_with_output(&recipe, &config_dir);
+                } else if let Some(inline) = config.setup_of(&profile, name) {
+                    runner::setup_inline_with_output(name, inline, &config_dir);
+                }
+            }
+            None => {
                 if let Some(inline) = config.setup_of(&profile, name) {
                     runner::setup_inline_with_output(name, inline, &config_dir);
                 }
@@ -153,13 +196,13 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
         }
     }
 
-    if !dry_run {
-        state.save(&state_path)?;
-        if orphan_done > 0 {
-            printer::info(&format!("{} orphan(s) uninstalled", orphan_done));
-        }
-        printer::summary(done, tools.len(), failed);
+    printer::blank();
+
+    state.save(&state_path)?;
+    if orphan_done > 0 {
+        printer::info(&format!("{} orphan(s) uninstalled", orphan_done));
     }
+    printer::summary(done, tools.len(), failed);
 
     Ok(())
 }

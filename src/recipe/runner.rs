@@ -190,9 +190,6 @@ pub fn install_with_output(recipe: &Recipe, recipes_dir: &Path) -> bool {
     let name = &recipe.meta.name;
 
     if recipe.setup_only {
-        if recipe.local {
-            printer::info(&format!("using local recipe '{}'", name));
-        }
         return true;
     }
 
@@ -345,9 +342,6 @@ pub fn setup_inline_with_output(name: &str, inline: &qwert_yml::InlineSetup, con
 /// Run setup and print status to terminal. Returns true on success.
 pub fn setup_with_output(recipe: &Recipe, config_dir: &Path) -> bool {
     let name = &recipe.meta.name;
-    if recipe.local {
-        printer::info(&format!("using local recipe '{}'", name));
-    }
     match setup(recipe, config_dir) {
         RunResult::NotSupported => true,
         RunResult::AlreadyInstalled { .. } => {
