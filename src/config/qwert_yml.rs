@@ -272,6 +272,11 @@ impl QwertConfig {
             .map(|s| s.as_str())
     }
 
+    /// Set (or replace) the config source path for a tool in a profile.
+    pub fn set_config_source(&mut self, profile: &str, name: &str, path: &str) {
+        self.ensure_profile(profile).configs.insert(name.to_string(), path.to_string());
+    }
+
     /// Inline setup declared in the catalog for a tool (legacy form).
     pub fn inline_setup_of(&self, name: &str) -> Option<&InlineSetup> {
         match self.tools.get(name) {

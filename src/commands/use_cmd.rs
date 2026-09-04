@@ -29,14 +29,30 @@ pub fn use_tool(name: &str, version: Option<&str>, profile: Option<&str>, no_ins
         printer::ok(name, &format!("added to qwert.yml ({}/{})", profile, ver_label));
     }
 
+    // Seed the config source from the recipe's default `from`, if the tool has a
+    // recipe setup and no source is declared yet. Runs before any --no-install
+    // early return so the config is explicit and editable regardless of install.
+    let recipes_dir = index::cache_dir()
+        .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
+    crate::commands::recipes_cmd::update_silent();
+
+    if config.config_source_for(&profile, name).is_none() {
+        let source_from_recipe = index::find(name, &recipes_dir)
+            .and_then(|r| r.setup)
+            .and_then(|s| s.from);
+        if let Some(from) = source_from_recipe {
+            config.set_config_source(&profile, name, &from);
+            config.save(&manifest_path)?;
+            printer::info(&format!(
+                "config source set to '{}' (recipe default — edit config.yml to override)",
+                from
+            ));
+        }
+    }
+
     if no_install {
         return Ok(());
     }
-
-    let recipes_dir = index::cache_dir()
-        .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
-
-    crate::commands::recipes_cmd::update_silent();
 
     let source = config
         .config_source_for(&profile, name)

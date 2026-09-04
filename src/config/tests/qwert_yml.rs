@@ -154,6 +154,20 @@ fn config_source_for_missing_returns_none() {
     assert_eq!(config.config_source_for("dev", "nvim"), None);
 }
 
+#[test]
+fn set_config_source_writes_and_overrides() {
+    // arrange
+    let mut config = QwertConfig::default();
+    // act
+    config.set_config_source("dev", "nvim", "~/.qwert/config/neovim");
+    config.set_config_source("dev", "nvim", "~/.qwert/custom/neovim");
+    // assert — latest write wins
+    assert_eq!(
+        config.config_source_for("dev", "nvim"),
+        Some("~/.qwert/custom/neovim")
+    );
+}
+
 // --- Mutations ---
 
 #[test]
