@@ -9,7 +9,7 @@ struct Row {
     status: String,
     ok: bool,
     manager: String,
-    setup: String,
+    setup_ok: bool,
     origin: String,
     version: String,
     profiles: String,
@@ -82,11 +82,15 @@ pub fn run(all: bool) -> Result<()> {
                 } else {
                     "[remote]".to_string()
                 };
-                let setup = recipe
+                // Setup is "done" only when the recipe has a setup section and it
+                // is in a settled state (configured/linked/copied).
+                let setup_ok = recipe
                     .setup
                     .as_ref()
-                    .map(|s| runner::setup_status_label(s, source.as_deref()).to_string())
-                    .unwrap_or_else(|| "—".to_string());
+                    .map(|s| {
+                        matches!(runner::setup_status_label(s, source.as_deref()), "configured" | "linked" | "copied")
+                    })
+                    .unwrap_or(false);
 
                 // setup_only → "config only"; any recipe present → managed by qwert
                 let manager = if recipe.setup_only {
@@ -106,7 +110,7 @@ pub fn run(all: bool) -> Result<()> {
                 } else {
                     ("not installed".to_string(), false, "—".to_string())
                 };
-                rows.push(Row { name: name.clone(), status, ok, manager, setup, origin, version, profiles });
+                rows.push(Row { name: name.clone(), status, ok, manager, setup_ok, origin, version, profiles });
             }
             None => {
                 // No recipe — managed by the platform's default package manager.
@@ -122,7 +126,7 @@ pub fn run(all: bool) -> Result<()> {
                     status,
                     ok: installed,
                     manager: "default".to_string(),
-                    setup: "—".to_string(),
+                    setup_ok: false,
                     origin: "—".to_string(),
                     version,
                     profiles,
@@ -146,7 +150,7 @@ pub fn run(all: bool) -> Result<()> {
         w[0] = w[0].max(r.name.chars().count());
         w[1] = w[1].max(r.status.chars().count());
         w[2] = w[2].max(r.manager.chars().count() + 2);
-        w[3] = w[3].max(r.setup.chars().count());
+        w[3] = w[3].max(if r.setup_ok { 4 } else { 1 });
         w[4] = w[4].max(r.origin.chars().count());
         w[5] = w[5].max(r.version.chars().count());
         w[6] = w[6].max(r.profiles.chars().count());
@@ -195,7 +199,11 @@ pub fn run(all: bool) -> Result<()> {
             };
             format!("{}{}", printer::kind_tag(&label), extra)
         };
-        let setup = printer::dim_text(&pad(&r.setup, w[3]));
+        let setup = if r.setup_ok {
+            printer::success_text(&pad("done", w[3]))
+        } else {
+            " ".repeat(w[3])
+        };
         let origin = {
             let p = pad(&r.origin, w[4]);
             if r.origin == "[local]" {
@@ -204,7 +212,7 @@ pub fn run(all: bool) -> Result<()> {
                 printer::orange_text(&p)
             }
         };
-        let version = printer::dim_text(&pad(&r.version, w[5]));
+        let version = pad(&r.version, w[5]);
 
         let mut line = format!("  {}  {}  {}  {}  {}  {}", name, status, kind, setup, origin, version);
         if all {

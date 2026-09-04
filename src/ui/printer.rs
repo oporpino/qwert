@@ -38,10 +38,6 @@ pub fn error_text(s: &str) -> String {
     colorize(ERROR, s)
 }
 
-pub fn dim_text(s: &str) -> String {
-    colorize(DIM, s)
-}
-
 pub fn orange_text(s: &str) -> String {
     colorize(ORANGE, s)
 }
