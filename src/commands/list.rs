@@ -50,7 +50,6 @@ pub fn run(all: bool) -> Result<()> {
 
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
-    let config_dir = qwert_yml::config_dir();
 
     let mut rows: Vec<Row> = Vec::new();
 
@@ -63,6 +62,9 @@ pub fn run(all: bool) -> Result<()> {
         };
 
         let recipe = index::find(name, &recipes_dir);
+        let source = config
+            .config_source_for(&profile, name)
+            .map(|s| std::path::PathBuf::from(qwert_yml::expand_tilde(s)));
         match &recipe {
             Some(recipe) => {
                 let setup_only = recipe.setup_only;
@@ -74,7 +76,7 @@ pub fn run(all: bool) -> Result<()> {
                 let setup = recipe
                     .setup
                     .as_ref()
-                    .map(|s| runner::setup_status_label(s, &config_dir, name).to_string())
+                    .map(|s| runner::setup_status_label(s, source.as_deref()).to_string())
                     .unwrap_or_else(|| "—".to_string());
 
                 let (status, ok, kind) = if setup_only {

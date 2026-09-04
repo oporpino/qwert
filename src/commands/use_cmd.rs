@@ -35,17 +35,20 @@ pub fn use_tool(name: &str, version: Option<&str>, profile: Option<&str>, no_ins
 
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
-    let config_dir = qwert_yml::config_dir();
 
     crate::commands::recipes_cmd::update_silent();
+
+    let source = config
+        .config_source_for(&profile, name)
+        .map(|s| std::path::PathBuf::from(qwert_yml::expand_tilde(s)));
 
     match index::find(name, &recipes_dir) {
         Some(recipe) => {
             runner::install_with_output(&recipe, &recipes_dir);
             if recipe.setup.is_some() {
-                runner::setup_with_output(&recipe, &config_dir);
-            } else if let Some(inline) = config.setup_of(&profile, name) {
-                runner::setup_inline_with_output(name, inline, &config_dir);
+                runner::setup_with_output(&recipe, source.as_deref());
+            } else if let Some(inline) = config.inline_setup_of(name) {
+                runner::setup_inline_with_output(name, inline, source.as_deref());
             }
         }
         None => {
@@ -65,8 +68,8 @@ pub fn use_tool(name: &str, version: Option<&str>, profile: Option<&str>, no_ins
                 }
             }
             // Run inline setup if defined
-            if let Some(inline) = config.setup_of(&profile, name) {
-                runner::setup_inline_with_output(name, inline, &config_dir);
+            if let Some(inline) = config.inline_setup_of(name) {
+                runner::setup_inline_with_output(name, inline, source.as_deref());
             }
         }
     }

@@ -15,7 +15,6 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
 
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
-    let config_dir = qwert_yml::config_dir();
 
     printer::h1("Applying machine setup...");
     if !config.profiles.contains_key(&profile) {
@@ -180,17 +179,20 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
     printer::blank();
 
     for name in &tools {
+        let source = config
+            .config_source_for(&profile, name)
+            .map(|s| std::path::PathBuf::from(qwert_yml::expand_tilde(s)));
         match index::find(name, &recipes_dir) {
             Some(recipe) => {
                 if recipe.setup.is_some() {
-                    runner::setup_with_output(&recipe, &config_dir);
-                } else if let Some(inline) = config.setup_of(&profile, name) {
-                    runner::setup_inline_with_output(name, inline, &config_dir);
+                    runner::setup_with_output(&recipe, source.as_deref());
+                } else if let Some(inline) = config.inline_setup_of(name) {
+                    runner::setup_inline_with_output(name, inline, source.as_deref());
                 }
             }
             None => {
-                if let Some(inline) = config.setup_of(&profile, name) {
-                    runner::setup_inline_with_output(name, inline, &config_dir);
+                if let Some(inline) = config.inline_setup_of(name) {
+                    runner::setup_inline_with_output(name, inline, source.as_deref());
                 }
             }
         }

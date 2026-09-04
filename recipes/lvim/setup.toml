@@ -1,3 +1,2 @@
-from = "~/.qwert/config/lvim/config.lua"
 to = "~/.config/lvim/config.lua"
 symlink = true

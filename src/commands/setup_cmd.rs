@@ -23,17 +23,20 @@ pub fn run(name: &str) -> Result<()> {
 
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
-    let config_dir = qwert_yml::config_dir();
 
     crate::commands::recipes_cmd::update_silent();
+
+    let source = config
+        .config_source_for(&profile, name)
+        .map(|s| std::path::PathBuf::from(qwert_yml::expand_tilde(s)));
 
     let recipe = index::find(name, &recipes_dir);
     let recipe_has_setup = recipe.as_ref().map(|r| r.setup.is_some()).unwrap_or(false);
 
     if recipe_has_setup {
-        runner::setup_with_output(recipe.as_ref().unwrap(), &config_dir);
-    } else if let Some(inline) = config.setup_of(&profile, name) {
-        runner::setup_inline_with_output(name, inline, &config_dir);
+        runner::setup_with_output(recipe.as_ref().unwrap(), source.as_deref());
+    } else if let Some(inline) = config.inline_setup_of(name) {
+        runner::setup_inline_with_output(name, inline, source.as_deref());
     } else {
         printer::warning(&format!("no setup defined for '{}' — nothing to setup", name));
     }

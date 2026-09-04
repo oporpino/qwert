@@ -39,32 +39,6 @@ pub fn copy_file(src: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Recursively copy a directory into `dst`, creating it as needed.
-pub fn copy_dir(src: &Path, dst: &Path) -> Result<()> {
-    copy_dir_excluding(src, dst, None)
-}
-
-/// Recursively copy `src` into `dst`, skipping a top-level entry named `exclude` (if given).
-pub fn copy_dir_excluding(src: &Path, dst: &Path, exclude: Option<&str>) -> Result<()> {
-    std::fs::create_dir_all(dst)?;
-    for entry in std::fs::read_dir(src)?.filter_map(|e| e.ok()) {
-        let name = entry.file_name();
-        if let Some(ex) = exclude {
-            if name == ex {
-                continue;
-            }
-        }
-        let src_path = entry.path();
-        let dst_path = dst.join(&name);
-        if src_path.is_dir() {
-            copy_dir(&src_path, &dst_path)?;
-        } else {
-            std::fs::copy(&src_path, &dst_path)?;
-        }
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -235,16 +235,10 @@ pub fn status_with_output(recipe: &Recipe) {
 
 // --- Setup phase ---
 
-/// Resolve the from path: explicit from (expands ~) or default ~/.qwert/config/<name>
-fn resolve_from(setup: &RecipeSetup, recipe_name: &str, config_dir: &Path) -> PathBuf {
-    match &setup.from {
-        Some(from) => PathBuf::from(qwert_yml::expand_tilde(from)),
-        None => config_dir.join("config").join(recipe_name),
-    }
-}
-
 /// Core setup logic for a RecipeSetup section (shared by recipe and inline setup).
-fn run_setup_section(name: &str, s: &RecipeSetup, config_dir: &Path) -> RunResult {
+/// `from` is the resolved source for symlink/copy setups (from config.yml configs,
+/// or the inline setup's own `from`). Recipes themselves are source-less.
+fn run_setup_section(name: &str, s: &RecipeSetup, from: Option<PathBuf>) -> RunResult {
     let platform = platform::detect();
     let dest = PathBuf::from(qwert_yml::expand_tilde(&s.to));
 
@@ -259,9 +253,25 @@ fn run_setup_section(name: &str, s: &RecipeSetup, config_dir: &Path) -> RunResul
         return RunResult::Installed;
     }
 
+    // Copy: an existing dest already counts as set up — no source needed.
+    if !s.symlink && dest.exists() {
+        return RunResult::AlreadyInstalled { version: None };
+    }
+
+    // Symlink / copy setups need a source declared in config.yml under
+    // `profiles.<profile>.configs.<tool>`. Recipes no longer carry a `from`.
+    let from = match from {
+        Some(from) => from,
+        None => {
+            return RunResult::Failed(format!(
+                "{} setup needs a source — declare it in config.yml under 'profiles.<profile>.configs.{}'",
+                name, name
+            ));
+        }
+    };
+
     // Symlink
     if s.symlink {
-        let from = resolve_from(s, name, config_dir);
         if dest.is_symlink() && std::fs::read_link(&dest).ok().as_deref() == Some(from.as_path()) {
             return RunResult::AlreadyInstalled { version: None };
         }
@@ -271,11 +281,7 @@ fn run_setup_section(name: &str, s: &RecipeSetup, config_dir: &Path) -> RunResul
         };
     }
 
-    // Copy
-    if dest.exists() {
-        return RunResult::AlreadyInstalled { version: None };
-    }
-    let from = resolve_from(s, name, config_dir);
+    // Copy (dest does not exist yet)
     if !from.exists() {
         return RunResult::Failed(format!("from not found: {}", from.display()));
     }
@@ -285,16 +291,19 @@ fn run_setup_section(name: &str, s: &RecipeSetup, config_dir: &Path) -> RunResul
     }
 }
 
-/// Run the setup phase for a recipe.
-pub fn setup(recipe: &Recipe, config_dir: &Path) -> RunResult {
+/// Run the setup phase for a recipe. `source` is the config.yml `configs` path
+/// for the tool (the `from` for symlink/copy), if declared.
+pub fn setup(recipe: &Recipe, source: Option<&Path>) -> RunResult {
     let Some(s) = &recipe.setup else {
         return RunResult::NotSupported;
     };
-    run_setup_section(&recipe.meta.name, s, config_dir)
+    let from = source.map(|p| PathBuf::from(qwert_yml::expand_tilde(&*p.to_string_lossy())));
+    run_setup_section(&recipe.meta.name, s, from)
 }
 
-/// Run inline setup defined in qwert.yml.
-pub fn setup_inline(name: &str, inline: &qwert_yml::InlineSetup, config_dir: &Path) -> RunResult {
+/// Run inline setup defined in config.yml. Its own `from` wins; otherwise falls
+/// back to the profile's `configs` source.
+pub fn setup_inline(name: &str, inline: &qwert_yml::InlineSetup, source: Option<&Path>) -> RunResult {
     use crate::recipe::schema::{Commands, RecipeSetup, SetupUndo};
 
     fn to_commands(s: &qwert_yml::StringOrList) -> Commands {
@@ -317,12 +326,18 @@ pub fn setup_inline(name: &str, inline: &qwert_yml::InlineSetup, config_dir: &Pa
             arch: u.arch.as_ref().map(to_commands),
         }),
     };
-    run_setup_section(name, &recipe_setup, config_dir)
+
+    let from = inline
+        .from
+        .as_ref()
+        .map(|f| PathBuf::from(qwert_yml::expand_tilde(f)))
+        .or_else(|| source.map(|p| PathBuf::from(qwert_yml::expand_tilde(&*p.to_string_lossy()))));
+    run_setup_section(name, &recipe_setup, from)
 }
 
 /// Run inline setup and print status to terminal. Returns true on success.
-pub fn setup_inline_with_output(name: &str, inline: &qwert_yml::InlineSetup, config_dir: &Path) -> bool {
-    match setup_inline(name, inline, config_dir) {
+pub fn setup_inline_with_output(name: &str, inline: &qwert_yml::InlineSetup, source: Option<&Path>) -> bool {
+    match setup_inline(name, inline, source) {
         RunResult::NotSupported => true,
         RunResult::AlreadyInstalled { .. } => {
             printer::ok(name, "setup already done");
@@ -340,9 +355,9 @@ pub fn setup_inline_with_output(name: &str, inline: &qwert_yml::InlineSetup, con
 }
 
 /// Run setup and print status to terminal. Returns true on success.
-pub fn setup_with_output(recipe: &Recipe, config_dir: &Path) -> bool {
+pub fn setup_with_output(recipe: &Recipe, source: Option<&Path>) -> bool {
     let name = &recipe.meta.name;
-    match setup(recipe, config_dir) {
+    match setup(recipe, source) {
         RunResult::NotSupported => true,
         RunResult::AlreadyInstalled { .. } => {
             printer::ok(name, "setup already done");
@@ -435,7 +450,7 @@ pub fn undo_setup_with_output(recipe: &Recipe, config_dir: &Path) -> bool {
 }
 
 /// Returns a static label for setup status
-pub fn setup_status_label(setup: &RecipeSetup, config_dir: &Path, recipe_name: &str) -> &'static str {
+pub fn setup_status_label(setup: &RecipeSetup, source: Option<&Path>) -> &'static str {
     let platform = platform::detect();
     let dest = PathBuf::from(qwert_yml::expand_tilde(&setup.to));
 
@@ -445,7 +460,9 @@ pub fn setup_status_label(setup: &RecipeSetup, config_dir: &Path, recipe_name: &
     }
 
     if setup.symlink {
-        let from = resolve_from(setup, recipe_name, config_dir);
+        let from = source
+            .map(|p| PathBuf::from(qwert_yml::expand_tilde(&*p.to_string_lossy())))
+            .unwrap_or_else(|| PathBuf::new());
         if dest.is_symlink() && std::fs::read_link(&dest).ok().as_deref() == Some(from.as_path()) {
             return "linked";
         }
@@ -453,35 +470,6 @@ pub fn setup_status_label(setup: &RecipeSetup, config_dir: &Path, recipe_name: &
     }
 
     if dest.exists() { "copied" } else { "not copied" }
-}
-
-/// Check and print install + setup status in one line.
-pub fn status_with_setup_output(recipe: &Recipe, config_dir: &Path, declared: &str) {
-    status_with_setup_output_w(recipe, config_dir, declared, 12);
-}
-
-pub fn status_with_setup_output_w(recipe: &Recipe, config_dir: &Path, declared: &str, name_width: usize) {
-    let name = &recipe.meta.name;
-    let tag = printer::kind_tag_col(&recipe.meta.kind.to_string());
-    let origin = printer::origin_tag(recipe.local);
-
-    let install_ok = is_installed(recipe);
-    let install_str = version_msg(
-        if install_ok { "installed" } else { "not installed" },
-        if install_ok { installed_version(recipe) } else { None },
-    );
-
-    let setup_str = recipe.setup.as_ref()
-        .map(|s| setup_status_label(s, config_dir, name))
-        .unwrap_or("—");
-
-    let msg = format!("{:<28}{}  {:<12}  {}  {}", install_str, tag, setup_str, origin, declared);
-
-    if install_ok {
-        printer::ok_w(name, name_width, &msg);
-    } else {
-        printer::failed_w(name, name_width, &msg);
-    }
 }
 
 #[cfg(test)]
@@ -560,34 +548,26 @@ mod tests {
     }
 
     #[test]
-    fn resolve_src_uses_explicit_src_when_provided() {
+    fn setup_symlink_fails_when_no_source_declared() {
         // arrange
-        let setup = make_setup("~/.tmux.conf", true, Some("/tmp/my-tmux.conf"));
-        let config_dir = std::path::PathBuf::from("/home/user/.config/qwert");
-        // act
-        let src = resolve_from(&setup, "tmux", &config_dir);
-        // assert
-        assert_eq!(src, std::path::PathBuf::from("/tmp/my-tmux.conf"));
-    }
-
-    #[test]
-    fn resolve_src_defaults_to_config_dir_config_slash_name() {
-        // arrange
-        let setup = make_setup("~/.tmux.conf", true, None);
-        let config_dir = std::path::PathBuf::from("/home/user/.config/qwert");
-        // act
-        let src = resolve_from(&setup, "tmux", &config_dir);
-        // assert
-        assert_eq!(src, std::path::PathBuf::from("/home/user/.config/qwert/config/tmux"));
+        let dir = std::env::temp_dir().join("qwert_runner_test_no_source");
+        fs::create_dir_all(&dir).unwrap();
+        let dest = dir.join("dest.conf");
+        let s = make_setup(dest.to_str().unwrap(), true, None);
+        let recipe = make_recipe_with_setup(Some(s));
+        // act — no source from config.yml
+        let result = setup(&recipe, None);
+        // assert — recipe no longer carries a `from`; source must come from config
+        assert!(matches!(result, RunResult::Failed(_)));
+        fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn setup_returns_not_supported_when_no_setup_section() {
         // arrange
         let recipe = make_recipe_with_setup(None);
-        let config_dir = std::path::PathBuf::from("/tmp");
         // act
-        let result = setup(&recipe, &config_dir);
+        let result = setup(&recipe, None);
         // assert
         assert!(matches!(result, RunResult::NotSupported));
     }
@@ -613,8 +593,8 @@ mod tests {
             undo: None,
         };
         let recipe = make_recipe_with_setup(Some(s));
-        // act
-        let result = setup(&recipe, &src_dir);
+        // act — source is the config.yml configs path for the tool
+        let result = setup(&recipe, Some(&src_file));
         // assert
         assert!(matches!(result, RunResult::Installed));
         assert!(dest.is_symlink());
@@ -642,8 +622,8 @@ mod tests {
             undo: None,
         };
         let recipe = make_recipe_with_setup(Some(s));
-        // act
-        let result = setup(&recipe, &dir);
+        // act — source is already-linked src
+        let result = setup(&recipe, Some(&src));
         // assert
         assert!(matches!(result, RunResult::AlreadyInstalled { .. }));
         fs::remove_dir_all(&dir).ok();
@@ -659,8 +639,8 @@ mod tests {
 
         let s = make_setup(dest.to_str().unwrap(), false, None);
         let recipe = make_recipe_with_setup(Some(s));
-        // act
-        let result = setup(&recipe, &dir);
+        // act — dest exists → AlreadyInstalled (source irrelevant)
+        let result = setup(&recipe, None);
         // assert
         assert!(matches!(result, RunResult::AlreadyInstalled { .. }));
         fs::remove_dir_all(&dir).ok();
@@ -673,12 +653,11 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         let dest = dir.join("dest.conf");
 
-        // src defaults to config_dir/test, which doesn't exist
         let s = make_setup(dest.to_str().unwrap(), false, None);
         let recipe = make_recipe_with_setup(Some(s));
-        // act
-        let result = setup(&recipe, &dir);
-        // assert — src = dir/test, doesn't exist
+        // act — no source declared
+        let result = setup(&recipe, None);
+        // assert — copy needs a source from config.yml
         assert!(matches!(result, RunResult::Failed(_)));
         fs::remove_dir_all(&dir).ok();
     }
@@ -703,7 +682,7 @@ mod tests {
         };
         let recipe = make_recipe_with_setup(Some(s));
         // act
-        let result = setup(&recipe, &dir);
+        let result = setup(&recipe, Some(&src));
         // assert
         assert!(matches!(result, RunResult::Installed));
         assert_eq!(fs::read_to_string(&dest).unwrap(), "my config");
@@ -789,10 +768,9 @@ mod tests {
     fn setup_status_label_returns_dash_when_no_section() {
         // arrange
         let recipe = make_recipe_with_setup(None);
-        let config_dir = std::path::PathBuf::from("/tmp");
         // act
         let label = recipe.setup.as_ref()
-            .map(|s| setup_status_label(s, &config_dir, &recipe.meta.name))
+            .map(|s| setup_status_label(s, None))
             .unwrap_or("—");
         // assert
         assert_eq!(label, "—");
@@ -808,7 +786,7 @@ mod tests {
         let recipe = make_recipe_with_setup(Some(s));
         // act
         let label = recipe.setup.as_ref()
-            .map(|s| setup_status_label(s, &dir, &recipe.meta.name))
+            .map(|s| setup_status_label(s, None))
             .unwrap_or("—");
         // assert
         assert_eq!(label, "not linked");
@@ -838,7 +816,7 @@ mod tests {
         let recipe = make_recipe_with_setup(Some(s));
         // act
         let label = recipe.setup.as_ref()
-            .map(|sl| setup_status_label(sl, &dir, &recipe.meta.name))
+            .map(|sl| setup_status_label(sl, Some(&src)))
             .unwrap_or("—");
         // assert
         assert_eq!(label, "linked");

@@ -4,9 +4,9 @@ use crate::config::qwert_yml;
 use crate::recipe::{index, runner, schema::RecipeSetup};
 use crate::ui::printer;
 
-fn setup_summary(setup: &RecipeSetup, config_dir: &std::path::Path, name: &str) -> String {
+fn setup_summary(setup: &RecipeSetup, source: Option<&std::path::Path>) -> String {
     let dest = &setup.to;
-    let label = runner::setup_status_label(setup, config_dir, name);
+    let label = runner::setup_status_label(setup, source);
     let platform = crate::platform::detect();
 
     if !setup.setup_cmds_for(&platform).is_empty() {
@@ -21,9 +21,12 @@ fn setup_summary(setup: &RecipeSetup, config_dir: &std::path::Path, name: &str) 
 pub fn run(name: &str) -> Result<()> {
     let manifest_path = qwert_yml::manifest_path();
     let config = qwert_yml::QwertConfig::load(&manifest_path)?;
+    let profile = crate::config::machine::MachineIdentity::load()?.active_profile().to_string();
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
-    let config_dir = qwert_yml::config_dir();
+    let source = config
+        .config_source_for(&profile, name)
+        .map(|s| std::path::PathBuf::from(qwert_yml::expand_tilde(s)));
 
     printer::h1(name);
     printer::blank();
@@ -73,7 +76,7 @@ pub fn run(name: &str) -> Result<()> {
             printer::field("installed", &installed_str);
 
             let setup_str = recipe.setup.as_ref()
-                .map(|s| setup_summary(s, &config_dir, name))
+                .map(|s| setup_summary(s, source.as_deref()))
                 .unwrap_or_else(|| "—".to_string());
             printer::field("setup", &setup_str);
 

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 /// Profile name used when a legacy config (top-level `tools:`) is loaded.
@@ -12,6 +12,15 @@ pub const PROFILE_DEFAULT: &str = "default";
 pub enum ToolEntry {
     Simple(String),
     Full(ToolConfig),
+}
+
+impl ToolEntry {
+    fn version(&self) -> &str {
+        match self {
+            ToolEntry::Simple(v) => v.as_str(),
+            ToolEntry::Full(c) => c.version.as_str(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -63,7 +72,7 @@ impl StringOrList {
     }
 }
 
-/// Hooks for a single profile.
+/// Hooks for a single profile (flat, ordered): shell scripts to source per phase.
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct Hooks {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -73,36 +82,44 @@ pub struct Hooks {
     pub init: Vec<String>,
 }
 
-/// A single profile: its own list of tools and hooks.
+fn hooks_empty(h: &Hooks) -> bool {
+    h.prepare.is_empty() && h.init.is_empty()
+}
+
+/// A single profile: which catalog tools it uses, its config sources and hooks.
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct Profile {
+    /// Catalog tool names, in declaration order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tools: Vec<String>,
+
+    /// tool → source path for the recipe's symlink/copy setup. The config.yml is
+    /// the source of truth for where each dotfile lives; recipes are source-less.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub tools: IndexMap<String, ToolEntry>,
+    pub configs: IndexMap<String, String>,
 
     #[serde(default, skip_serializing_if = "hooks_empty")]
     pub hooks: Hooks,
 }
 
-fn hooks_empty(h: &Hooks) -> bool {
-    h.prepare.is_empty() && h.init.is_empty()
-}
-
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 #[serde(from = "QwertConfigRaw", into = "QwertConfigRaw")]
 pub struct QwertConfig {
-    /// profile name → profile (tools + hooks).
+    /// Catalog of tools this setup knows about: name → version spec.
+    pub tools: IndexMap<String, ToolEntry>,
+    /// profile name → profile (tools, configs, hooks).
     pub profiles: IndexMap<String, Profile>,
 }
 
-/// Raw shape used for (de)serialization — supports both legacy flat (top-level
-/// `tools:`/`hooks:`) and the new `profiles:` form.
-#[derive(Debug, Default, Deserialize, Serialize)]
+/// Raw shape used for (de)serialization. Handles both the new catalog+profiles
+/// form and the legacy flat `tools:`-only form (mapped to a "default" profile).
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 struct QwertConfigRaw {
     #[serde(default)]
-    profiles: IndexMap<String, Profile>,
-
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     tools: IndexMap<String, ToolEntry>,
+
+    #[serde(default)]
+    profiles: IndexMap<String, Profile>,
 
     #[serde(default, skip_serializing_if = "hooks_empty")]
     hooks: Hooks,
@@ -111,22 +128,27 @@ struct QwertConfigRaw {
 impl From<QwertConfigRaw> for QwertConfig {
     fn from(raw: QwertConfigRaw) -> Self {
         if !raw.profiles.is_empty() {
-            QwertConfig { profiles: raw.profiles }
+            QwertConfig { tools: raw.tools, profiles: raw.profiles }
         } else {
-            // Legacy flat config → single "default" profile.
+            // Legacy flat config: catalog = all tools, active through a default profile.
+            let names: Vec<String> = raw.tools.keys().cloned().collect();
             let mut profiles = IndexMap::new();
             profiles.insert(
                 PROFILE_DEFAULT.to_string(),
-                Profile { tools: raw.tools, hooks: raw.hooks },
+                Profile { tools: names, configs: IndexMap::new(), hooks: raw.hooks },
             );
-            QwertConfig { profiles }
+            QwertConfig { tools: raw.tools, profiles }
         }
     }
 }
 
 impl From<QwertConfig> for QwertConfigRaw {
     fn from(cfg: QwertConfig) -> Self {
-        QwertConfigRaw { profiles: cfg.profiles, tools: IndexMap::new(), hooks: Hooks::default() }
+        QwertConfigRaw {
+            tools: cfg.tools,
+            profiles: cfg.profiles,
+            hooks: Hooks::default(),
+        }
     }
 }
 
@@ -160,7 +182,8 @@ impl QwertConfig {
         self.profiles.contains_key(profile)
     }
 
-    /// Names of profiles that declare at least one tool.
+    /// Profiles that reference at least one catalog tool — candidates for the
+    /// machine profile selection prompt.
     pub fn profiles_with_tools(&self) -> Vec<String> {
         self.profiles
             .iter()
@@ -174,79 +197,94 @@ impl QwertConfig {
         self.profiles.entry(profile.to_string()).or_default()
     }
 
-    /// Is a tool declared in any profile?
+    /// Is a tool declared (in the catalog or referenced by any profile)?
     pub fn declared_anywhere(&self, name: &str) -> bool {
-        self.profiles.values().any(|p| p.tools.contains_key(name))
+        self.tools.contains_key(name)
+            || self.profiles.values().any(|p| p.tools.iter().any(|t| t == name))
     }
 
-    /// Is a tool declared in a specific profile?
+    /// Is a tool referenced by a specific profile?
     pub fn has_tool_in(&self, profile: &str, name: &str) -> bool {
         self.profiles
             .get(profile)
-            .map(|p| p.tools.contains_key(name))
+            .map(|p| p.tools.iter().any(|t| t == name))
             .unwrap_or(false)
     }
 
-    /// Add or update a tool in a profile. `version` defaults to "latest" if None.
-    /// Preserves existing inline setup when updating an existing entry.
+    /// Add or update a tool: ensure it exists in the catalog and reference it in
+    /// the profile's tool list. `version` defaults to "latest" when adding a new
+    /// tool; an existing catalog version is preserved when `version` is None.
     pub fn add_tool(&mut self, profile: &str, name: &str, version: Option<&str>) {
-        let ver = version.unwrap_or("latest").to_string();
-        self.ensure_profile(profile)
-            .tools
-            .entry(name.to_string())
-            .and_modify(|e| match e {
-                ToolEntry::Simple(v) => *v = ver.clone(),
-                ToolEntry::Full(c) => c.version = ver.clone(),
-            })
-            .or_insert_with(|| ToolEntry::Simple(ver));
-    }
-
-    /// Remove a tool from every profile; drop profiles that become empty.
-    pub fn remove_tool(&mut self, name: &str) {
-        for profile in self.profiles.values_mut() {
-            profile.tools.shift_remove(name);
+        match version {
+            Some(ver) => {
+                self.tools
+                    .entry(name.to_string())
+                    .and_modify(|e| match e {
+                        ToolEntry::Simple(v) => *v = ver.to_string(),
+                        ToolEntry::Full(c) => c.version = ver.to_string(),
+                    })
+                    .or_insert_with(|| ToolEntry::Simple(ver.to_string()));
+            }
+            None => {
+                self.tools
+                    .entry(name.to_string())
+                    .or_insert_with(|| ToolEntry::Simple("latest".to_string()));
+            }
         }
-        self.profiles.retain(|_, p| !p.tools.is_empty() || !hooks_empty(&p.hooks));
+        let p = self.ensure_profile(profile);
+        if !p.tools.iter().any(|t| t == name) {
+            p.tools.push(name.to_string());
+        }
     }
 
-    /// Tools declared for the given profile, in declaration order.
+    /// Remove a tool from the catalog and every profile's tool list.
+    pub fn remove_tool(&mut self, name: &str) {
+        self.tools.shift_remove(name);
+        for profile in self.profiles.values_mut() {
+            profile.tools.retain(|t| t != name);
+            profile.configs.shift_remove(name);
+        }
+        self.profiles.retain(|_, p| {
+            !p.tools.is_empty() || !p.configs.is_empty() || !hooks_empty(&p.hooks)
+        });
+    }
+
+    /// Profile tool names in declaration order. A tool referenced by the profile but
+    /// missing from the catalog is still returned (version defaults to "latest").
     pub fn tool_names_for_profile(&self, profile: &str) -> Vec<String> {
         match self.profiles.get(profile) {
-            Some(p) => p.tools.keys().cloned().collect(),
+            Some(p) => p.tools.clone(),
             None => Vec::new(),
         }
     }
 
-    /// Version for a tool in a profile. Defaults to "latest".
-    pub fn version_of(&self, profile: &str, name: &str) -> &str {
-        match self.profiles.get(profile).and_then(|p| p.tools.get(name)) {
-            Some(ToolEntry::Simple(v)) => v.as_str(),
-            Some(ToolEntry::Full(c)) => c.version.as_str(),
-            None => "latest",
-        }
+    /// Version for a catalog tool. Defaults to "latest".
+    pub fn version_of(&self, _profile: &str, name: &str) -> &str {
+        self.tools.get(name).map(|e| e.version()).unwrap_or("latest")
     }
 
-    /// Inline setup for a tool declared in a profile.
-    pub fn setup_of(&self, profile: &str, name: &str) -> Option<&InlineSetup> {
-        match self.profiles.get(profile).and_then(|p| p.tools.get(name)) {
+    /// Config source path declared for a tool within a profile (the `from` for the
+    /// recipe's symlink/copy setup). The source of truth for where each dotfile lives.
+    pub fn config_source_for(&self, profile: &str, name: &str) -> Option<&str> {
+        self.profiles
+            .get(profile)
+            .and_then(|p| p.configs.get(name))
+            .map(|s| s.as_str())
+    }
+
+    /// Inline setup declared in the catalog for a tool (legacy form).
+    pub fn inline_setup_of(&self, name: &str) -> Option<&InlineSetup> {
+        match self.tools.get(name) {
             Some(ToolEntry::Full(c)) => c.setup.as_ref(),
             _ => None,
         }
     }
 
-    /// The profile that declares this tool (first match), if any.
-    pub fn profile_of_tool(&self, name: &str) -> Option<&str> {
-        self.profiles
-            .iter()
-            .find(|(_, p)| p.tools.contains_key(name))
-            .map(|(k, _)| k.as_str())
-    }
-
-    /// List of profiles that declare this tool (for display).
+    /// List of profiles that reference this tool (for display).
     pub fn profiles_of_tool(&self, name: &str) -> Vec<String> {
         self.profiles
             .iter()
-            .filter(|(_, p)| p.tools.contains_key(name))
+            .filter(|(_, p)| p.tools.iter().any(|t| t == name))
             .map(|(k, _)| k.clone())
             .collect()
     }
@@ -256,10 +294,10 @@ impl QwertConfig {
         if hook != "prepare" && hook != "init" {
             return;
         }
-        let hooks = &mut self.ensure_profile(profile).hooks;
+        let p = self.ensure_profile(profile);
         let scripts = match hook {
-            "prepare" => &mut hooks.prepare,
-            _ => &mut hooks.init,
+            "prepare" => &mut p.hooks.prepare,
+            _ => &mut p.hooks.init,
         };
         if !scripts.iter().any(|s| s == path) {
             scripts.push(path.to_string());
@@ -267,13 +305,13 @@ impl QwertConfig {
     }
 
     /// Hook paths for a profile's prepare or init phase.
-    pub fn hooks_for(&self, profile: &str, phase: &str) -> Vec<String> {
-        let Some(hooks) = self.profiles.get(profile).map(|p| &p.hooks) else {
+    pub fn hooks_for_profile(&self, profile: &str, phase: &str) -> Vec<String> {
+        let Some(p) = self.profiles.get(profile) else {
             return Vec::new();
         };
         match phase {
-            "prepare" => hooks.prepare.clone(),
-            "init" => hooks.init.clone(),
+            "prepare" => p.hooks.prepare.clone(),
+            "init" => p.hooks.init.clone(),
             _ => Vec::new(),
         }
     }

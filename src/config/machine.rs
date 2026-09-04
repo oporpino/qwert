@@ -16,12 +16,7 @@ impl MachineIdentity {
     /// Load from env override (QWERT_PROFILE) or machine.yml.
     pub fn load() -> Result<Self> {
         if let Ok(env) = std::env::var("QWERT_PROFILE") {
-            let profile = if env.trim().is_empty() {
-                None
-            } else {
-                Some(env.trim().to_string())
-            };
-            return Ok(Self { profile });
+            return Ok(Self::from_env(&env));
         }
         Self::load_from(&machine_path())
     }
