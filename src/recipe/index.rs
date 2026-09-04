@@ -37,6 +37,7 @@ fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<Setup
         symlink: s.symlink,
         macos: s.macos,
         debian: s.debian,
+        arch: s.arch,
         undo: s.undo,
     });
 

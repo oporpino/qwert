@@ -81,6 +81,55 @@ pub fn install() -> Result<()> {
     printer::blank();
     printer::info("tip: version control ~/.qwert in a git repo to replicate your environment on any machine.");
     printer::blank();
+
+    // Machine identity — interactive role selection when not configured yet
+    if !crate::config::machine::machine_path().exists() {
+        prompt_roles()?;
+    }
+
+    Ok(())
+}
+
+/// Ask which roles this machine should apply (from sections declared in qwert.yml).
+fn prompt_roles() -> Result<()> {
+    use std::io::Write;
+
+    let config = crate::config::qwert_yml::QwertConfig::load(&crate::config::qwert_yml::manifest_path())?;
+    let available = config.role_sections();
+
+    printer::h1("Machine roles");
+    printer::blank();
+    if available.is_empty() {
+        printer::info("No roles declared in qwert.yml yet. Set them anytime with `qwert machine <role>`.");
+        printer::blank();
+        return Ok(());
+    }
+
+    printer::info(&format!("Available roles: {}", available.join(", ")));
+    print!("  Select roles (space separated) or ENTER to skip: ");
+    std::io::stdout().flush()?;
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line)?;
+    let mut roles: Vec<String> = line.split_whitespace().map(|s| s.to_string()).collect();
+
+    print!("  Create a new role? [name or ENTER to skip]: ");
+    std::io::stdout().flush()?;
+    let mut second = String::new();
+    std::io::stdin().read_line(&mut second)?;
+    let new_role = second.trim().to_string();
+    if !new_role.is_empty() {
+        roles.push(new_role);
+    }
+
+    if !roles.is_empty() {
+        let mut machine = crate::config::machine::MachineIdentity::default();
+        machine.set_roles(roles);
+        machine.save()?;
+        printer::ok("roles", "saved — run `qwert apply` to apply this machine's setup");
+    } else {
+        printer::info("No roles configured. Run `qwert machine <roles>` anytime.");
+    }
+    printer::blank();
     Ok(())
 }
 

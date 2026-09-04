@@ -7,11 +7,12 @@ use crate::ui::printer;
 pub fn run(tool: Option<&str>) -> Result<()> {
     let manifest_path = qwert_yml::manifest_path();
     let config = qwert_yml::QwertConfig::load(&manifest_path)?;
+    let roles = crate::config::machine::MachineIdentity::load()?.roles;
 
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
 
-    let tool_names = config.tool_names();
+    let tool_names = config.tool_names_for_roles(&roles);
     let tools: Vec<&str> = if let Some(t) = tool {
         vec![t]
     } else {

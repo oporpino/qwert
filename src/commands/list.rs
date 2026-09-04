@@ -7,8 +7,11 @@ use crate::ui::printer;
 pub fn run() -> Result<()> {
     let manifest_path = qwert_yml::manifest_path();
     let config = qwert_yml::QwertConfig::load(&manifest_path)?;
+    let roles = crate::config::machine::MachineIdentity::load()?.roles;
 
-    if config.tools.is_empty() {
+    let names = config.tool_names_for_roles(&roles);
+
+    if names.is_empty() {
         printer::info("No tools declared. Run `qwert use <tool>` to add one.");
         return Ok(());
     }
@@ -17,15 +20,20 @@ pub fn run() -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
     let config_dir = qwert_yml::config_dir();
 
-    let names = config.tool_names();
     let name_width = names.iter().map(|n| n.len()).max().unwrap_or(0).max(12) + 2;
 
     printer::blank();
 
     for name in &names {
-        let declared = config.version_of(name);
+        let sections = config.sections_of_tool(name);
+        let role_tag = sections
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
+        let declared = format!("{} [{}]", config.version_of_for_roles(name, &roles), role_tag);
         match index::find(name, &recipes_dir) {
-            Some(recipe) => runner::status_with_setup_output_w(&recipe, &config_dir, declared, name_width),
+            Some(recipe) => runner::status_with_setup_output_w(&recipe, &config_dir, &declared, name_width),
             None => {
                 let installed = crate::platform::which(name);
                 let tag = printer::kind_tag_col("—");

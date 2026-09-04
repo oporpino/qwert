@@ -42,15 +42,25 @@ pub fn run() -> Result<()> {
         printer::failed("recipes", "cache not found — run `qwert update`");
     }
 
+    // Machine identity
+    let machine_identity = crate::config::machine::MachineIdentity::load()?;
+    if machine_identity.roles.is_empty() {
+        printer::info("machine roles: none — run `qwert machine <roles>`");
+    } else {
+        printer::ok("machine roles", &machine_identity.roles.join(", "));
+    }
+
     // Tools status
     let config = qwert_yml::QwertConfig::load(&manifest_path)?;
-    if !config.tools.is_empty() {
+    let roles = machine_identity.roles;
+    let names = config.tool_names_for_roles(&roles);
+    if !names.is_empty() {
         printer::blank();
         printer::h2("Declared tools");
-        for name in config.tool_names() {
-            match index::find(&name, &recipes_dir) {
+        for name in &names {
+            match index::find(name, &recipes_dir) {
                 Some(recipe) => runner::status_with_output(&recipe),
-                None => printer::failed(&name, "recipe not found"),
+                None => printer::failed(name, "recipe not found"),
             }
         }
     }

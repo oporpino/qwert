@@ -296,9 +296,11 @@ pub fn setup_inline(name: &str, inline: &qwert_yml::InlineSetup, config_dir: &Pa
         symlink: inline.symlink,
         macos: inline.macos.as_ref().map(to_commands),
         debian: inline.debian.as_ref().map(to_commands),
+        arch: inline.arch.as_ref().map(to_commands),
         undo: inline.undo.as_ref().map(|u| SetupUndo {
             macos: u.macos.as_ref().map(to_commands),
             debian: u.debian.as_ref().map(to_commands),
+            arch: u.arch.as_ref().map(to_commands),
         }),
     };
     run_setup_section(name, &recipe_setup, config_dir)
@@ -535,6 +537,7 @@ mod tests {
             symlink,
             macos: None,
             debian: None,
+            arch: None,
             undo: None,
         }
     }
@@ -589,6 +592,7 @@ mod tests {
             symlink: true,
             macos: None,
             debian: None,
+            arch: None,
             undo: None,
         };
         let recipe = make_recipe_with_setup(Some(s));
@@ -617,6 +621,7 @@ mod tests {
             symlink: true,
             macos: None,
             debian: None,
+            arch: None,
             undo: None,
         };
         let recipe = make_recipe_with_setup(Some(s));
@@ -676,6 +681,7 @@ mod tests {
             symlink: false,
             macos: None,
             debian: None,
+            arch: None,
             undo: None,
         };
         let recipe = make_recipe_with_setup(Some(s));
@@ -704,6 +710,7 @@ mod tests {
             symlink: true,
             macos: None,
             debian: None,
+            arch: None,
             undo: None,
         };
         let recipe = make_recipe_with_setup(Some(s));
@@ -729,6 +736,7 @@ mod tests {
             symlink: false,
             macos: None,
             debian: None,
+            arch: None,
             undo: None,
         };
         let mut recipe = make_recipe_with_setup(Some(s));
@@ -750,6 +758,7 @@ mod tests {
             symlink: false,
             macos: Some(Commands::One("defaults write com.foo bar".into())),
             debian: Some(Commands::One("echo debian-setup".into())),
+            arch: None,
             undo: None,
         };
         let recipe = make_recipe_with_setup(Some(s));
@@ -806,6 +815,7 @@ mod tests {
             symlink: true,
             macos: None,
             debian: None,
+            arch: None,
             undo: None,
         };
         let recipe = make_recipe_with_setup(Some(s));

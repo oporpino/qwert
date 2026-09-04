@@ -8,7 +8,7 @@ pub fn run(name: &str) -> Result<()> {
     let manifest_path = qwert_yml::manifest_path();
     let mut config = qwert_yml::QwertConfig::load(&manifest_path)?;
 
-    if !config.has_tool(name) {
+    if !config.declared_anywhere(name) {
         printer::warning(&format!("{} is not declared in qwert.yml", name));
         return Ok(());
     }

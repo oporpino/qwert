@@ -1,7 +1,10 @@
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::path::{Path, PathBuf};
+
+/// The implicit, always-on role section. Base of the merge stack.
+pub const SHARED: &str = "shared";
 
 /// Backward-compatible tool entry: simple version string or full config object.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -31,6 +34,7 @@ pub struct InlineSetup {
     pub symlink: bool,
     pub macos: Option<StringOrList>,
     pub debian: Option<StringOrList>,
+    pub arch: Option<StringOrList>,
     pub undo: Option<InlineUndo>,
 }
 
@@ -38,6 +42,7 @@ pub struct InlineSetup {
 pub struct InlineUndo {
     pub macos: Option<StringOrList>,
     pub debian: Option<StringOrList>,
+    pub arch: Option<StringOrList>,
 }
 
 /// A single command string or an ordered list of commands (mirrors Commands in schema.rs).
@@ -58,25 +63,145 @@ impl StringOrList {
     }
 }
 
+/// Hooks for a single role section.
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct QwertConfig {
-    /// name → version spec or full config (backward-compatible)
-    #[serde(default)]
-    pub tools: IndexMap<String, ToolEntry>,
+pub struct RoleHooks {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub prepare: Vec<String>,
 
-    #[serde(default)]
-    pub hooks: Hooks,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub init: Vec<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct Hooks {
-    /// Runs at the very top of .zshrc — only for things that must come first (e.g. p10k instant prompt)
-    #[serde(default)]
-    pub prepare: Vec<String>,
+pub struct QwertConfig {
+    /// role section → tool name → entry. "shared" is implicit.
+    #[serde(
+        default,
+        deserialize_with = "deserialize_tools",
+        serialize_with = "serialize_sections",
+        skip_serializing_if = "sections_empty"
+    )]
+    pub tools: IndexMap<String, IndexMap<String, ToolEntry>>,
 
-    /// Runs at the bottom of .zshrc — where most shell initialization happens
-    #[serde(default)]
-    pub init: Vec<String>,
+    /// role section → hooks. "shared" is implicit.
+    #[serde(
+        default,
+        deserialize_with = "deserialize_hooks",
+        serialize_with = "serialize_hook_sections",
+        skip_serializing_if = "hook_sections_empty"
+    )]
+    pub hooks: IndexMap<String, RoleHooks>,
+}
+
+fn sections_empty(tools: &IndexMap<String, IndexMap<String, ToolEntry>>) -> bool {
+    tools.is_empty()
+}
+
+fn hook_sections_empty(hooks: &IndexMap<String, RoleHooks>) -> bool {
+    hooks.is_empty()
+}
+
+fn tool_config_keys() -> [&'static str; 2] {
+    ["version", "setup"]
+}
+
+/// A value mapping is a "section" iff it has a key that is not a tool-config key.
+fn is_tool_section(v: &serde_yml::Value) -> bool {
+    match v.as_mapping() {
+        Some(m) => m.iter().any(|(k, _)| match k.as_str() {
+            Some(k) => !tool_config_keys().contains(&k),
+            None => true,
+        }),
+        None => false,
+    }
+}
+
+fn deserialize_tools<'de, D>(d: D) -> Result<IndexMap<String, IndexMap<String, ToolEntry>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_yml::Value::deserialize(d)?;
+    let Some(map) = value.as_mapping() else {
+        return Ok(IndexMap::new());
+    };
+
+    let all_sections = map.iter().all(|(_, v)| is_tool_section(v));
+
+    if all_sections {
+        let mut sections = IndexMap::new();
+        for (k, v) in map {
+            let section: IndexMap<String, ToolEntry> =
+                serde_yml::from_value(v.clone()).map_err(serde::de::Error::custom)?;
+            let name = k.as_str().map(|s| s.to_string()).unwrap_or_default();
+            sections.insert(name, section);
+        }
+        Ok(sections)
+    } else {
+        let flat: IndexMap<String, ToolEntry> =
+            serde_yml::from_value(serde_yml::Value::Mapping(map.clone()))
+                .map_err(serde::de::Error::custom)?;
+        let mut sections = IndexMap::new();
+        sections.insert(SHARED.to_string(), flat);
+        Ok(sections)
+    }
+}
+
+/// Flat `hooks: {prepare, init}` (values are arrays) → shared.
+/// Sectioned `hooks: {shared: {...}, dev: {...}}` (values are mappings) → sections.
+fn deserialize_hooks<'de, D>(d: D) -> Result<IndexMap<String, RoleHooks>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_yml::Value::deserialize(d)?;
+    let Some(map) = value.as_mapping() else {
+        return Ok(IndexMap::new());
+    };
+
+    let all_sections = map.iter().all(|(_, v)| v.as_mapping().is_some());
+
+    if all_sections {
+        let mut sections = IndexMap::new();
+        for (k, v) in map {
+            let rh: RoleHooks = serde_yml::from_value(v.clone()).map_err(serde::de::Error::custom)?;
+            let name = k.as_str().map(|s| s.to_string()).unwrap_or_default();
+            sections.insert(name, rh);
+        }
+        Ok(sections)
+    } else {
+        let flat: RoleHooks = serde_yml::from_value(serde_yml::Value::Mapping(map.clone()))
+            .map_err(serde::de::Error::custom)?;
+        let mut sections = IndexMap::new();
+        sections.insert(SHARED.to_string(), flat);
+        Ok(sections)
+    }
+}
+
+/// Serialize as nested sections (drops empty sections).
+fn serialize_sections<S>(
+    value: &IndexMap<String, IndexMap<String, ToolEntry>>,
+    s: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let filtered: IndexMap<_, _> = value
+        .iter()
+        .filter(|(_, tools)| !tools.is_empty())
+        .collect();
+    serde::Serialize::serialize(&filtered, s)
+}
+
+/// Serialize as nested sections (drops empty sections).
+fn serialize_hook_sections<S>(value: &IndexMap<String, RoleHooks>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let filtered: IndexMap<_, _> = value
+        .iter()
+        .filter(|(_, hooks)| !hooks.prepare.is_empty() || !hooks.init.is_empty())
+        .collect();
+    serde::Serialize::serialize(&filtered, s)
 }
 
 impl QwertConfig {
@@ -99,11 +224,38 @@ impl QwertConfig {
         Ok(())
     }
 
-    /// Add or update a tool. `version` defaults to "latest" if None.
-    /// Preserves existing inline setup when updating an existing entry.
-    pub fn add_tool(&mut self, name: &str, version: Option<&str>) {
-        let ver = version.unwrap_or("latest").to_string();
+    /// Non-shared sections that have at least one tool declared.
+    pub fn role_sections(&self) -> Vec<String> {
         self.tools
+            .iter()
+            .filter(|(k, v)| k.as_str() != SHARED && !v.is_empty())
+            .map(|(k, _)| k.clone())
+            .collect()
+    }
+
+    /// Get (or create) the tool map for a role section.
+    pub fn ensure_section(&mut self, role: &str) -> &mut IndexMap<String, ToolEntry> {
+        self.tools.entry(role.to_string()).or_default()
+    }
+
+    /// Is a tool declared in any section?
+    pub fn declared_anywhere(&self, name: &str) -> bool {
+        self.tools.values().any(|s| s.contains_key(name))
+    }
+
+    /// Is a tool declared in a specific section?
+    pub fn has_tool_in(&self, role: &str, name: &str) -> bool {
+        self.tools
+            .get(role)
+            .map(|s| s.contains_key(name))
+            .unwrap_or(false)
+    }
+
+    /// Add or update a tool in a role section. `version` defaults to "latest" if None.
+    /// Preserves existing inline setup when updating an existing entry.
+    pub fn add_tool(&mut self, name: &str, role: &str, version: Option<&str>) {
+        let ver = version.unwrap_or("latest").to_string();
+        self.ensure_section(role)
             .entry(name.to_string())
             .and_modify(|e| match e {
                 ToolEntry::Simple(v) => *v = ver.clone(),
@@ -112,41 +264,84 @@ impl QwertConfig {
             .or_insert_with(|| ToolEntry::Simple(ver));
     }
 
+    /// Remove a tool from every section; drop sections that become empty.
     pub fn remove_tool(&mut self, name: &str) {
-        self.tools.shift_remove(name);
-    }
-
-    pub fn has_tool(&self, name: &str) -> bool {
-        self.tools.contains_key(name)
-    }
-
-    /// Ordered list of declared tool names.
-    pub fn tool_names(&self) -> Vec<String> {
-        self.tools.keys().cloned().collect()
-    }
-
-    /// Version spec for a tool ("latest" or semver). Returns "latest" if not declared.
-    pub fn version_of(&self, name: &str) -> &str {
-        match self.tools.get(name) {
-            Some(ToolEntry::Simple(v)) => v.as_str(),
-            Some(ToolEntry::Full(c)) => c.version.as_str(),
-            None => "latest",
+        for section in self.tools.values_mut() {
+            section.shift_remove(name);
         }
+        self.tools.retain(|_, s| !s.is_empty());
     }
 
-    /// Inline setup defined in qwert.yml for this tool, if any.
-    pub fn setup_of(&self, name: &str) -> Option<&InlineSetup> {
-        match self.tools.get(name) {
-            Some(ToolEntry::Full(c)) => c.setup.as_ref(),
-            _ => None,
+    /// Ordered active sections: [shared] then roles in machine order (dedup, shared excluded).
+    pub fn effective_sections(&self, roles: &[String]) -> Vec<String> {
+        let mut v = vec![SHARED.to_string()];
+        for r in roles {
+            let r = r.trim();
+            if !r.is_empty() && r != SHARED && !v.contains(&r.to_string()) {
+                v.push(r.to_string());
+            }
         }
+        v
     }
 
-    pub fn add_hook(&mut self, hook: &str, path: &str) {
+    /// Union of tool names across active sections (first-seen order, dedup).
+    pub fn tool_names_for_roles(&self, roles: &[String]) -> Vec<String> {
+        let mut names: Vec<String> = Vec::new();
+        for section in self.effective_sections(roles) {
+            if let Some(tools) = self.tools.get(&section) {
+                for name in tools.keys() {
+                    if !names.contains(name) {
+                        names.push(name.clone());
+                    }
+                }
+            }
+        }
+        names
+    }
+
+    /// Version for a tool across active sections — the last declaring section wins.
+    pub fn version_of_for_roles(&self, name: &str, roles: &[String]) -> &str {
+        for section in self.effective_sections(roles).iter().rev() {
+            if let Some(entry) = self.tools.get(section).and_then(|s| s.get(name)) {
+                return match entry {
+                    ToolEntry::Simple(v) => v.as_str(),
+                    ToolEntry::Full(c) => c.version.as_str(),
+                };
+            }
+        }
+        "latest"
+    }
+
+    /// Inline setup for a tool across active sections — the last declaring section wins.
+    pub fn setup_of_for_roles(&self, name: &str, roles: &[String]) -> Option<&InlineSetup> {
+        for section in self.effective_sections(roles).iter().rev() {
+            if let Some(ToolEntry::Full(c)) = self.tools.get(section).and_then(|s| s.get(name)) {
+                if let Some(setup) = &c.setup {
+                    return Some(setup);
+                }
+            }
+        }
+        None
+    }
+
+    /// Sections that declare this tool (for display).
+    pub fn sections_of_tool(&self, name: &str) -> Vec<String> {
+        self.tools
+            .iter()
+            .filter(|(_, s)| s.contains_key(name))
+            .map(|(k, _)| k.clone())
+            .collect()
+    }
+
+    /// Append a hook path to a role's prepare/init list (dedup). No-op for unknown hooks.
+    pub fn add_hook(&mut self, role: &str, hook: &str, path: &str) {
+        if hook != "prepare" && hook != "init" {
+            return;
+        }
+        let rh = self.hooks.entry(role.to_string()).or_default();
         let scripts = match hook {
-            "prepare" => &mut self.hooks.prepare,
-            "init" => &mut self.hooks.init,
-            _ => return,
+            "prepare" => &mut rh.prepare,
+            _ => &mut rh.init,
         };
         if !scripts.iter().any(|s| s == path) {
             scripts.push(path.to_string());
@@ -176,284 +371,5 @@ pub(crate) fn expand_tilde(path: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn add_tool_appends_new_tool_with_latest() {
-        // arrange
-        let mut config = QwertConfig::default();
-        // act
-        config.add_tool("neovim", None);
-        // assert
-        assert_eq!(config.version_of("neovim"), "latest");
-    }
-
-    #[test]
-    fn add_tool_ignores_duplicate() {
-        // arrange
-        let mut config = QwertConfig::default();
-        config.add_tool("neovim", None);
-        // act
-        config.add_tool("neovim", None);
-        // assert
-        assert_eq!(config.tools.len(), 1);
-    }
-
-    #[test]
-    fn remove_tool_deletes_existing_tool() {
-        // arrange
-        let mut config = QwertConfig::default();
-        config.add_tool("neovim", None);
-        config.add_tool("tmux", None);
-        // act
-        config.remove_tool("neovim");
-        // assert
-        assert_eq!(config.tool_names(), vec!["tmux"]);
-    }
-
-    #[test]
-    fn remove_tool_is_noop_when_absent() {
-        // arrange
-        let mut config = QwertConfig::default();
-        config.add_tool("tmux", None);
-        // act
-        config.remove_tool("neovim");
-        // assert
-        assert_eq!(config.tool_names(), vec!["tmux"]);
-    }
-
-    #[test]
-    fn has_tool_returns_true_when_present() {
-        // arrange
-        let mut config = QwertConfig::default();
-        config.add_tool("tmux", None);
-        // act
-        let result = config.has_tool("tmux");
-        // assert
-        assert!(result);
-    }
-
-    #[test]
-    fn has_tool_returns_false_when_absent() {
-        // arrange
-        let config = QwertConfig::default();
-        // act
-        let result = config.has_tool("tmux");
-        // assert
-        assert!(!result);
-    }
-
-    #[test]
-    fn add_hook_appends_to_init_hook() {
-        // arrange
-        let mut config = QwertConfig::default();
-        // act
-        config.add_hook("init", "~/dotfiles/env.sh");
-        // assert
-        assert_eq!(config.hooks.init, vec!["~/dotfiles/env.sh"]);
-    }
-
-    #[test]
-    fn add_hook_appends_to_init_hook_at_bottom() {
-        // arrange
-        let mut config = QwertConfig::default();
-        // act
-        config.add_hook("init", "~/dotfiles/aliases.sh");
-        // assert
-        assert_eq!(config.hooks.init, vec!["~/dotfiles/aliases.sh"]);
-    }
-
-    #[test]
-    fn add_hook_ignores_duplicate_path() {
-        // arrange
-        let mut config = QwertConfig::default();
-        config.add_hook("prepare", "~/env.sh");
-        // act
-        config.add_hook("prepare", "~/env.sh");
-        // assert
-        assert_eq!(config.hooks.prepare.len(), 1);
-    }
-
-    #[test]
-    fn add_hook_ignores_unknown_hook() {
-        // arrange
-        let mut config = QwertConfig::default();
-        // act
-        config.add_hook("unknown", "~/script.sh");
-        // assert — no panic, no side effects
-        assert!(config.hooks.prepare.is_empty());
-        assert!(config.hooks.init.is_empty());
-    }
-
-    #[test]
-    fn save_and_load_roundtrip() {
-        // arrange
-        let mut config = QwertConfig::default();
-        config.add_tool("tmux", None);
-        config.add_tool("neovim", None);
-        config.add_hook("init", "~/env.sh");
-        let path = std::env::temp_dir().join("qwert_test_roundtrip.yml");
-        // act
-        config.save(&path).unwrap();
-        let loaded = QwertConfig::load(&path).unwrap();
-        std::fs::remove_file(&path).ok();
-        // assert
-        assert_eq!(loaded.tool_names(), vec!["tmux", "neovim"]);
-        assert_eq!(loaded.version_of("tmux"), "latest");
-        assert_eq!(loaded.hooks.init, vec!["~/env.sh"]);
-    }
-
-    #[test]
-    fn load_returns_default_when_file_missing() {
-        // arrange
-        let path = std::env::temp_dir().join("qwert_nonexistent_xyz.yml");
-        // act
-        let config = QwertConfig::load(&path).unwrap();
-        // assert
-        assert!(config.tools.is_empty());
-    }
-
-    #[test]
-    fn config_dir_returns_qwert_home() {
-        // arrange
-        let home = dirs::home_dir().unwrap();
-        // act
-        let dir = config_dir();
-        // assert
-        assert_eq!(dir, home.join(".qwert"));
-    }
-
-    #[test]
-    fn expand_tilde_replaces_prefix() {
-        // arrange
-        let home = dirs::home_dir().unwrap();
-        // act
-        let result = expand_tilde("~/dotfiles/env.sh");
-        // assert
-        assert!(result.starts_with(home.to_str().unwrap()));
-        assert!(result.ends_with("dotfiles/env.sh"));
-    }
-
-    #[test]
-    fn expand_tilde_leaves_absolute_path_unchanged() {
-        // arrange
-        let path = "/etc/profile";
-        // act
-        let result = expand_tilde(path);
-        // assert
-        assert_eq!(result, "/etc/profile");
-    }
-
-    #[test]
-    fn tool_entry_simple_parses_from_string() {
-        // arrange
-        let yaml = "tools:\n  tmux: latest\n";
-        // act
-        let config: QwertConfig = serde_yml::from_str(yaml).unwrap();
-        // assert
-        assert_eq!(config.version_of("tmux"), "latest");
-        assert!(config.setup_of("tmux").is_none());
-    }
-
-    #[test]
-    fn tool_entry_full_parses_from_object() {
-        // arrange
-        let yaml = "tools:\n  neovim:\n    version: \"0.9\"\n";
-        // act
-        let config: QwertConfig = serde_yml::from_str(yaml).unwrap();
-        // assert
-        assert_eq!(config.version_of("neovim"), "0.9");
-        assert!(config.setup_of("neovim").is_none());
-    }
-
-    #[test]
-    fn tool_entry_full_with_setup_symlink() {
-        // arrange
-        let yaml = "tools:\n  neovim:\n    version: latest\n    setup:\n      to: ~/.config/nvim\n      symlink: true\n";
-        // act
-        let config: QwertConfig = serde_yml::from_str(yaml).unwrap();
-        // assert
-        let setup = config.setup_of("neovim").unwrap();
-        assert_eq!(setup.to, "~/.config/nvim");
-        assert!(setup.symlink);
-    }
-
-    #[test]
-    fn tool_entry_full_with_commands() {
-        // arrange
-        let yaml = "tools:\n  delta:\n    version: latest\n    setup:\n      to: ~/.gitconfig\n      macos: \"git config --global core.pager delta\"\n";
-        // act
-        let config: QwertConfig = serde_yml::from_str(yaml).unwrap();
-        // assert
-        let setup = config.setup_of("delta").unwrap();
-        let steps = setup.macos.as_ref().unwrap().as_steps();
-        assert_eq!(steps, vec!["git config --global core.pager delta"]);
-    }
-
-    #[test]
-    fn setup_of_returns_none_for_simple_entry() {
-        // arrange
-        let mut config = QwertConfig::default();
-        config.add_tool("tmux", None);
-        // act + assert
-        assert!(config.setup_of("tmux").is_none());
-    }
-
-    #[test]
-    fn setup_of_returns_setup_for_full_entry() {
-        // arrange
-        let yaml = "tools:\n  tmux:\n    version: latest\n    setup:\n      to: ~/.tmux.conf\n      symlink: true\n";
-        let config: QwertConfig = serde_yml::from_str(yaml).unwrap();
-        // act + assert
-        assert!(config.setup_of("tmux").is_some());
-    }
-
-    #[test]
-    fn version_of_returns_latest_for_simple_entry() {
-        // arrange
-        let mut config = QwertConfig::default();
-        config.add_tool("tmux", None);
-        // act + assert
-        assert_eq!(config.version_of("tmux"), "latest");
-    }
-
-    #[test]
-    fn version_of_returns_version_for_full_entry() {
-        // arrange
-        let yaml = "tools:\n  tmux:\n    version: \"3.4\"\n";
-        let config: QwertConfig = serde_yml::from_str(yaml).unwrap();
-        // act + assert
-        assert_eq!(config.version_of("tmux"), "3.4");
-    }
-
-    #[test]
-    fn add_tool_preserves_existing_inline_setup() {
-        // arrange
-        let yaml = "tools:\n  neovim:\n    version: latest\n    setup:\n      to: ~/.config/nvim\n      symlink: true\n";
-        let mut config: QwertConfig = serde_yml::from_str(yaml).unwrap();
-        // act — update version without touching setup
-        config.add_tool("neovim", Some("0.10"));
-        // assert — setup must still be present
-        assert_eq!(config.version_of("neovim"), "0.10");
-        assert!(config.setup_of("neovim").is_some());
-    }
-
-    #[test]
-    fn save_and_load_roundtrip_with_inline_setup() {
-        // arrange
-        let yaml = "tools:\n  tmux: latest\n  neovim:\n    version: latest\n    setup:\n      to: ~/.config/nvim\n      symlink: true\n";
-        let config: QwertConfig = serde_yml::from_str(yaml).unwrap();
-        let path = std::env::temp_dir().join("qwert_test_inline_roundtrip.yml");
-        // act
-        config.save(&path).unwrap();
-        let loaded = QwertConfig::load(&path).unwrap();
-        std::fs::remove_file(&path).ok();
-        // assert
-        assert_eq!(loaded.version_of("tmux"), "latest");
-        assert!(loaded.setup_of("tmux").is_none());
-        let setup = loaded.setup_of("neovim").unwrap();
-        assert_eq!(setup.to, "~/.config/nvim");
-        assert!(setup.symlink);
-    }
-}
+#[path = "tests/qwert_yml.rs"]
+mod tests;

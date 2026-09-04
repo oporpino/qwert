@@ -27,19 +27,22 @@ pub fn run(phase: &str) -> Result<()> {
         }
     }
 
-    // User-defined hooks from qwert.yml
+    // User-defined hooks from qwert.yml, merged by role (shared first, then machine roles in order)
     let manifest_path = qwert_yml::manifest_path();
     let config = qwert_yml::QwertConfig::load(&manifest_path)?;
+    let roles = crate::config::machine::MachineIdentity::load()?.roles;
 
-    let hooks = match phase {
-        "prepare" => &config.hooks.prepare,
-        "init" => &config.hooks.init,
-        _ => return Ok(()),
-    };
-
-    for path in hooks {
-        let expanded = qwert_yml::expand_tilde(path);
-        println!("[ -f \"{}\" ] && source \"{}\"", expanded, expanded);
+    for section in config.effective_sections(&roles) {
+        let Some(rh) = config.hooks.get(&section) else { continue };
+        let hooks: Vec<&String> = match phase {
+            "prepare" => rh.prepare.iter().collect(),
+            "init" => rh.init.iter().collect(),
+            _ => return Ok(()),
+        };
+        for path in hooks {
+            let expanded = qwert_yml::expand_tilde(path);
+            println!("[ -f \"{}\" ] && source \"{}\"", expanded, expanded);
+        }
     }
 
     Ok(())

@@ -70,18 +70,21 @@ impl Commands {
 pub struct RecipeInstall {
     pub macos: Option<Commands>,
     pub debian: Option<Commands>,
+    pub arch: Option<Commands>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RecipeUpgrade {
     pub macos: Option<Commands>,
     pub debian: Option<Commands>,
+    pub arch: Option<Commands>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RecipeUninstall {
     pub macos: Option<Commands>,
     pub debian: Option<Commands>,
+    pub arch: Option<Commands>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -92,6 +95,7 @@ pub struct RecipeSetup {
     pub symlink: bool,
     pub macos: Option<Commands>,
     pub debian: Option<Commands>,
+    pub arch: Option<Commands>,
     pub undo: Option<SetupUndo>,
 }
 
@@ -99,6 +103,7 @@ pub struct RecipeSetup {
 pub struct SetupUndo {
     pub macos: Option<Commands>,
     pub debian: Option<Commands>,
+    pub arch: Option<Commands>,
 }
 
 /// Parsed from install.toml
@@ -120,13 +125,16 @@ pub struct SetupFile {
     pub symlink: bool,
     pub macos: Option<Commands>,
     pub debian: Option<Commands>,
+    pub arch: Option<Commands>,
     pub undo: Option<SetupUndo>,
 }
 
-fn platform_cmds<'a>(platform: &crate::platform::Platform, macos: Option<&'a Commands>, debian: Option<&'a Commands>) -> Vec<&'a str> {
+fn platform_cmds<'a>(platform: &crate::platform::Platform, macos: Option<&'a Commands>, debian: Option<&'a Commands>, arch: Option<&'a Commands>) -> Vec<&'a str> {
     let cmds = match platform {
         crate::platform::Platform::MacOS => macos,
-        crate::platform::Platform::Debian | crate::platform::Platform::Arch | crate::platform::Platform::Unknown => debian,
+        // Arch uses its own section, falling back to debian when no arch section
+        crate::platform::Platform::Arch => arch.or(debian),
+        crate::platform::Platform::Debian | crate::platform::Platform::Unknown => debian,
     };
     cmds.map(|c| c.as_steps()).unwrap_or_default()
 }
@@ -134,28 +142,28 @@ fn platform_cmds<'a>(platform: &crate::platform::Platform, macos: Option<&'a Com
 impl Recipe {
     pub fn install_steps_for(&self, platform: &crate::platform::Platform) -> Vec<&str> {
         let Some(s) = &self.install else { return vec![] };
-        platform_cmds(platform, s.macos.as_ref(), s.debian.as_ref())
+        platform_cmds(platform, s.macos.as_ref(), s.debian.as_ref(), s.arch.as_ref())
     }
 
     pub fn uninstall_steps_for(&self, platform: &crate::platform::Platform) -> Vec<&str> {
         let Some(s) = &self.uninstall else { return vec![] };
-        platform_cmds(platform, s.macos.as_ref(), s.debian.as_ref())
+        platform_cmds(platform, s.macos.as_ref(), s.debian.as_ref(), s.arch.as_ref())
     }
 
     pub fn upgrade_steps_for(&self, platform: &crate::platform::Platform) -> Vec<&str> {
         let Some(s) = &self.upgrade else { return vec![] };
-        platform_cmds(platform, s.macos.as_ref(), s.debian.as_ref())
+        platform_cmds(platform, s.macos.as_ref(), s.debian.as_ref(), s.arch.as_ref())
     }
 }
 
 impl RecipeSetup {
     pub fn setup_cmds_for(&self, platform: &crate::platform::Platform) -> Vec<&str> {
-        platform_cmds(platform, self.macos.as_ref(), self.debian.as_ref())
+        platform_cmds(platform, self.macos.as_ref(), self.debian.as_ref(), self.arch.as_ref())
     }
 
     pub fn undo_cmds_for(&self, platform: &crate::platform::Platform) -> Vec<&str> {
         let Some(undo) = &self.undo else { return vec![] };
-        platform_cmds(platform, undo.macos.as_ref(), undo.debian.as_ref())
+        platform_cmds(platform, undo.macos.as_ref(), undo.debian.as_ref(), undo.arch.as_ref())
     }
 }
 
@@ -175,7 +183,7 @@ mod tests {
                 pkg: None,
             },
             check: None,
-            install: Some(RecipeInstall { macos: install_macos, debian: install_debian }),
+            install: Some(RecipeInstall { macos: install_macos, debian: install_debian, arch: None }),
             upgrade: None,
             uninstall: None,
             setup: None,
@@ -286,6 +294,7 @@ mod tests {
         recipe.uninstall = Some(RecipeUninstall {
             macos: Some(Commands::One("brew uninstall tmux".into())),
             debian: None,
+            arch: None,
         });
         // act
         let steps = recipe.uninstall_steps_for(&Platform::MacOS);
@@ -314,6 +323,41 @@ command = "lvim"
     }
 
     #[test]
+    fn install_file_parses_arch_commands() {
+        // arrange
+        let toml = r#"
+[meta]
+name = "tmux"
+version = "1.0.0"
+description = "Terminal multiplexer"
+type = "qwert"
+
+[install]
+arch = "pacman -S --noconfirm tmux"
+debian = "apt-get install -y tmux"
+"#;
+        // act
+        let recipe: InstallFile = toml::from_str(toml).unwrap();
+        // assert
+        let steps = recipe.install.as_ref().unwrap().arch.as_ref().unwrap().as_steps();
+        assert_eq!(steps, vec!["pacman -S --noconfirm tmux"]);
+    }
+
+    #[test]
+    fn setup_file_parses_arch_commands() {
+        // arrange
+        let toml = r#"
+to = "~/.config/nvim"
+symlink = true
+arch = "echo arch-setup"
+"#;
+        // act
+        let setup: SetupFile = toml::from_str(toml).unwrap();
+        // assert
+        assert!(setup.arch.is_some());
+    }
+
+    #[test]
     fn setup_cmds_for_macos_returns_macos_commands() {
         // arrange
         let setup = RecipeSetup {
@@ -322,6 +366,7 @@ command = "lvim"
             symlink: false,
             macos: Some(Commands::One("defaults write com.foo bar".into())),
             debian: None,
+            arch: None,
             undo: None,
         };
         // act
@@ -339,6 +384,7 @@ command = "lvim"
             symlink: false,
             macos: None,
             debian: Some(Commands::One("ln -s foo bar".into())),
+            arch: None,
             undo: None,
         };
         // act
@@ -356,6 +402,7 @@ command = "lvim"
             symlink: true,
             macos: None,
             debian: None,
+            arch: None,
             undo: None,
         };
         // act
@@ -373,9 +420,11 @@ command = "lvim"
             symlink: false,
             macos: None,
             debian: None,
+            arch: None,
             undo: Some(SetupUndo {
                 macos: Some(Commands::One("defaults delete com.foo bar".into())),
                 debian: None,
+                arch: None,
             }),
         };
         // act
@@ -393,6 +442,7 @@ command = "lvim"
             symlink: true,
             macos: None,
             debian: None,
+            arch: None,
             undo: None,
         };
         // act

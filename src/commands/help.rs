@@ -5,9 +5,10 @@ pub fn run() {
     printer::blank();
 
     printer::h2("Machine setup");
-    printer::command("use <tool>",    "declare a tool for this machine and install it");
+    printer::command("use <tool> [--role r]", "declare a tool (default role: shared) and install it");
     printer::command("drop <tool>",   "remove tool from this machine's declaration");
     printer::command("apply",         "install/uninstall to match qwert.yml");
+    printer::command("machine [roles]", "show or set this machine's roles");
     printer::blank();
 
     printer::h2("Information");

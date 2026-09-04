@@ -122,6 +122,12 @@ pub enum Command {
     /// Show qwert version
     Version,
 
+    /// Show or set this machine's roles
+    Machine {
+        /// Roles for this machine (space separated); no args shows current roles
+        roles: Vec<String>,
+    },
+
     /// Health check — verify installation and symlinks
     Doctor,
 
@@ -158,6 +164,9 @@ pub enum UseTarget {
         /// Path to the script
         #[arg(long)]
         path: String,
+        /// Role to assign the script to (default: shared)
+        #[arg(long, default_value = "shared")]
+        role: String,
     },
 }
 
