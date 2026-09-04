@@ -33,6 +33,7 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
 
     let mut done = 0;
     let mut failed = 0;
+    let mut orphan_done = 0;
 
     // Uninstall orphans: installed but no longer active for this machine.
     if tool.is_none() {
@@ -47,11 +48,19 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                 printer::bullet(&format!("would uninstall: {}", name));
                 continue;
             }
+            // The platform's own package manager (brew/apt/pacman) is never a tool —
+            // it may appear in state from a bootstrap step. Keep it, just untrack.
+            if crate::adapters::is_package_manager(name) {
+                state.mark_removed(name);
+                printer::ok(name, "kept (package manager)");
+                orphan_done += 1;
+                continue;
+            }
             match index::find(name, &recipes_dir) {
                 Some(recipe) => {
                     if runner::uninstall_with_output(&recipe) {
                         state.mark_removed(name);
-                        done += 1;
+                        orphan_done += 1;
                     } else {
                         failed += 1;
                     }
@@ -62,7 +71,7 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                             if crate::platform::run_cmd(&adapter.uninstall_cmd(name)).is_ok() {
                                 state.mark_removed(name);
                                 printer::ok(name, "uninstalled");
-                                done += 1;
+                                orphan_done += 1;
                             } else {
                                 printer::failed(name, "uninstall failed — remove manually");
                                 failed += 1;
@@ -146,6 +155,9 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
 
     if !dry_run {
         state.save(&state_path)?;
+        if orphan_done > 0 {
+            printer::info(&format!("{} orphan(s) uninstalled", orphan_done));
+        }
         printer::summary(done, tools.len(), failed);
     }
 

@@ -28,6 +28,24 @@ fn colorize(color: &str, text: &str) -> String {
     }
 }
 
+/// Colorize helpers for table cells — the ANSI codes wrap the padded text, so
+/// the visible width is unaffected.
+pub fn success_text(s: &str) -> String {
+    colorize(SUCCESS, s)
+}
+
+pub fn error_text(s: &str) -> String {
+    colorize(ERROR, s)
+}
+
+pub fn dim_text(s: &str) -> String {
+    colorize(DIM, s)
+}
+
+pub fn bold_text(s: &str) -> String {
+    colorize(BOLD_WHITE, s)
+}
+
 // --- Status line printers ---
 
 /// ✓  tool_name   message
@@ -126,7 +144,8 @@ pub fn kind_tag(kind: &str) -> String {
     match kind {
         "brew" => colorize(BRIGHT_BLUE, &format!("[{}]", kind)),
         "apt" | "pacman" => colorize(BRIGHT_YELLOW, &format!("[{}]", kind)),
-        "qwert" => colorize(ORANGE, &format!("[{}]", kind)),
+        // qwert recipes run custom commands — no package manager
+        "qwert" | "custom" => colorize(ORANGE, &format!("[custom]")),
         _ => colorize(DIM, &format!("[{}]", kind)),
     }
 }

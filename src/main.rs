@@ -55,7 +55,7 @@ fn main() {
 
         Command::Search { name } => commands::search::run(&name),
 
-        Command::List => commands::list::run(),
+        Command::List { all } => commands::list::run(all),
 
         Command::Upgrade { tool, all } => {
             let target = if all { None } else { tool.as_deref() };

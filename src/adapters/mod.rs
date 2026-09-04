@@ -32,6 +32,11 @@ pub fn for_kind(kind: &RecipeKind) -> Option<Box<dyn PackageAdapter>> {
     }
 }
 
+/// Is this name one of the package managers qwert knows (never a user tool)?
+pub fn is_package_manager(name: &str) -> bool {
+    matches!(name, "brew" | "apt" | "apt-get" | "pacman")
+}
+
 /// Returns the default adapter for the current platform (brew on macOS, apt on Debian).
 pub fn default_adapter() -> Option<Box<dyn PackageAdapter>> {
     match crate::platform::detect() {

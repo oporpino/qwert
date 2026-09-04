@@ -18,7 +18,10 @@ fn default_kind() -> RecipeKind {
 }
 
 fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<SetupFile>, local: bool) -> Recipe {
-    let setup_only = install.is_none() && setup.is_some();
+    // A local recipe with only a setup section is setup-only (e.g. a skills/agents
+    // linker) — it never installs a package. Remote recipes with only setup fall
+    // back to the platform's default package manager (like the claude recipe).
+    let setup_only = local && install.is_none() && setup.is_some();
     let meta = install.as_ref().map(|i| i.meta.clone()).unwrap_or_else(|| RecipeMeta {
         name: name.to_string(),
         version: String::new(),
@@ -55,13 +58,13 @@ fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<Setup
 }
 
 /// Find a recipe in a single directory tree (no precedence).
-fn find_in(dir: &Path, name: &str) -> Option<Recipe> {
+fn find_in(dir: &Path, name: &str, local: bool) -> Option<Recipe> {
     let install: Option<InstallFile> = load_toml_opt(&dir.join(name).join("install.toml"));
     let setup: Option<SetupFile> = load_toml_opt(&dir.join(name).join("setup.toml"));
     if install.is_none() && setup.is_none() {
         return None;
     }
-    Some(assemble_recipe(name, install, setup, false))
+    Some(assemble_recipe(name, install, setup, local))
 }
 
 /// Find a recipe by name — checks local user recipes (~/.qwert/recipes) first,
@@ -69,12 +72,11 @@ fn find_in(dir: &Path, name: &str) -> Option<Recipe> {
 pub fn find(name: &str, recipes_dir: &Path) -> Option<Recipe> {
     let local_dir = crate::config::qwert_yml::config_dir().join("recipes");
     if local_dir.is_dir() {
-        if let Some(mut recipe) = find_in(&local_dir, name) {
-            recipe.local = true;
+        if let Some(recipe) = find_in(&local_dir, name, true) {
             return Some(recipe);
         }
     }
-    find_in(recipes_dir, name)
+    find_in(recipes_dir, name, false)
 }
 
 /// Load all recipes from subdirectories (remote cache only — used by search).
@@ -89,7 +91,7 @@ pub fn load_all(recipes_dir: &Path) -> Vec<Recipe> {
         let path = entry.path();
         if path.is_dir() {
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if let Some(recipe) = find_in(recipes_dir, name) {
+            if let Some(recipe) = find_in(recipes_dir, name, false) {
                 recipes.push(recipe);
             }
         }
@@ -248,7 +250,7 @@ symlink = true
         let dir = std::env::temp_dir().join("qwert_test_find_in_remote");
         make_recipe_dir(&dir, "tmux", Some(INSTALL_TOML), None);
         // act
-        let recipe = find_in(&dir, "tmux").unwrap();
+        let recipe = find_in(&dir, "tmux", false).unwrap();
         // assert
         assert!(!recipe.local);
         fs::remove_dir_all(&dir).ok();

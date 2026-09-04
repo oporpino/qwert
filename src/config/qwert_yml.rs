@@ -101,10 +101,10 @@ struct QwertConfigRaw {
     #[serde(default)]
     profiles: IndexMap<String, Profile>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     tools: IndexMap<String, ToolEntry>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "hooks_empty")]
     hooks: Hooks,
 }
 

@@ -189,6 +189,13 @@ pub fn upgrade(recipe: &Recipe) -> RunResult {
 pub fn install_with_output(recipe: &Recipe, recipes_dir: &Path) -> bool {
     let name = &recipe.meta.name;
 
+    if recipe.setup_only {
+        if recipe.local {
+            printer::info(&format!("using local recipe '{}'", name));
+        }
+        return true;
+    }
+
     if recipe.local {
         printer::info(&format!("installing local recipe '{}'", name));
     }

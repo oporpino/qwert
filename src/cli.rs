@@ -102,7 +102,11 @@ pub enum Command {
     Help,
 
     /// List declared tools and their status
-    List,
+    List {
+        /// Include tools from every profile (default: only the active profile)
+        #[arg(long)]
+        all: bool,
+    },
 
     /// Upgrade tools
     Upgrade {

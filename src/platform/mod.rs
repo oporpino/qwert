@@ -94,7 +94,7 @@ pub trait PlatformOps {
 
 /// Execute a shell command, streaming stdout/stderr to terminal
 pub fn run_cmd(cmd: &str) -> Result<()> {
-    let status = std::process::Command::new("sh")
+    let status = std::process::Command::new("bash")
         .arg("-c")
         .arg(cmd)
         .status()?;
@@ -108,7 +108,7 @@ pub fn run_cmd(cmd: &str) -> Result<()> {
 
 /// Execute a shell command, capturing stderr; on failure returns stderr content
 pub fn run_cmd_capture(cmd: &str) -> Result<(), String> {
-    let out = std::process::Command::new("sh")
+    let out = std::process::Command::new("bash")
         .arg("-c")
         .arg(cmd)
         .output()
