@@ -17,7 +17,7 @@ pub fn materialize(
     config_dir: &Path,
     data_dir: &Path,
 ) -> Result<Option<PathBuf>> {
-    let base = config_dir.join(tool);
+    let base = config_dir.join("config").join(tool);
     if !base.is_dir() {
         return Ok(None);
     }

@@ -139,6 +139,15 @@ pub fn kind_tag_col(kind: &str) -> String {
     format!("{}{}", tag, padding)
 }
 
+/// "[local]" or "[remote]" tag — recipe origin
+pub fn origin_tag(local: bool) -> String {
+    if local {
+        colorize(BRIGHT_GREEN, "[local]")
+    } else {
+        colorize(DIM, "[remote]")
+    }
+}
+
 // --- Search result ---
 
 /// "  neovim              [brew]   Neovim text editor    v0.10.2"

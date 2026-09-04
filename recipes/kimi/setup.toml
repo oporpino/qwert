@@ -1,15 +1,13 @@
 to = "~/.kimi-code"
 macos = [
   "mkdir -p ~/.kimi-code",
-  "mkdir -p ~/.qwert/kimi",
-  "if [ -f ~/.kimi-code/config.toml ] && [ ! -L ~/.kimi-code/config.toml ] && [ ! -f ~/.qwert/kimi/config.toml ]; then mv ~/.kimi-code/config.toml ~/.qwert/kimi/config.toml; fi",
-  "touch ~/.qwert/kimi/config.toml",
-  "ln -sfn ~/.qwert/kimi/config.toml ~/.kimi-code/config.toml",
-  "mkdir -p ~/.config/agents",
-  "ln -sfn ~/.qwert/agents/skills ~/.config/agents/skills",
+  "mkdir -p ~/.qwert/config/kimi",
+  "if [ -f ~/.kimi-code/config.toml ] && [ ! -L ~/.kimi-code/config.toml ] && [ ! -f ~/.qwert/config/kimi/config.toml ]; then mv ~/.kimi-code/config.toml ~/.qwert/config/kimi/config.toml; fi",
+  "touch ~/.qwert/config/kimi/config.toml",
+  "ln -sfn ~/.qwert/config/kimi/config.toml ~/.kimi-code/config.toml",
 ]
 
 [undo]
 macos = [
-  "rm -f ~/.kimi-code/config.toml ~/.config/agents/skills",
+  "rm -f ~/.kimi-code/config.toml",
 ]

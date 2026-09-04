@@ -8,6 +8,9 @@ pub struct Recipe {
     pub upgrade: Option<RecipeUpgrade>,
     pub uninstall: Option<RecipeUninstall>,
     pub setup: Option<RecipeSetup>,
+    /// Where the recipe was loaded from — local (~/.qwert/recipes) or remote cache.
+    #[serde(default)]
+    pub local: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -187,6 +190,7 @@ mod tests {
             upgrade: None,
             uninstall: None,
             setup: None,
+            local: false,
         }
     }
 

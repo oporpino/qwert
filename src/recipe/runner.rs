@@ -184,6 +184,10 @@ pub fn upgrade(recipe: &Recipe) -> RunResult {
 pub fn install_with_output(recipe: &Recipe, recipes_dir: &Path) -> bool {
     let name = &recipe.meta.name;
 
+    if recipe.local {
+        printer::info(&format!("installing local recipe '{}'", name));
+    }
+
     match install(recipe, recipes_dir) {
         RunResult::AlreadyInstalled { version } => {
             printer::ok(name, &version_msg("already installed", version));
@@ -210,22 +214,23 @@ pub fn install_with_output(recipe: &Recipe, recipes_dir: &Path) -> bool {
 pub fn status_with_output(recipe: &Recipe) {
     let name = &recipe.meta.name;
     let tag = printer::kind_tag(&recipe.meta.kind.to_string());
+    let origin = printer::origin_tag(recipe.local);
 
     if is_installed(recipe) {
-        let msg = format!("{}  {}", version_msg("installed", installed_version(recipe)), tag);
+        let msg = format!("{}  {}  {}", version_msg("installed", installed_version(recipe)), tag, origin);
         printer::ok(name, &msg);
     } else {
-        printer::failed(name, &format!("not installed  {}", tag));
+        printer::failed(name, &format!("not installed  {}  {}", tag, origin));
     }
 }
 
 // --- Setup phase ---
 
-/// Resolve the from path: explicit from (expands ~) or default ~/.qwert/<name>
+/// Resolve the from path: explicit from (expands ~) or default ~/.qwert/config/<name>
 fn resolve_from(setup: &RecipeSetup, recipe_name: &str, config_dir: &Path) -> PathBuf {
     match &setup.from {
         Some(from) => PathBuf::from(qwert_yml::expand_tilde(from)),
-        None => config_dir.join(recipe_name),
+        None => config_dir.join("config").join(recipe_name),
     }
 }
 
@@ -328,6 +333,9 @@ pub fn setup_inline_with_output(name: &str, inline: &qwert_yml::InlineSetup, con
 /// Run setup and print status to terminal. Returns true on success.
 pub fn setup_with_output(recipe: &Recipe, config_dir: &Path) -> bool {
     let name = &recipe.meta.name;
+    if recipe.local {
+        printer::info(&format!("using local recipe '{}'", name));
+    }
     match setup(recipe, config_dir) {
         RunResult::NotSupported => true,
         RunResult::AlreadyInstalled { .. } => {
@@ -449,6 +457,7 @@ pub fn status_with_setup_output(recipe: &Recipe, config_dir: &Path, declared: &s
 pub fn status_with_setup_output_w(recipe: &Recipe, config_dir: &Path, declared: &str, name_width: usize) {
     let name = &recipe.meta.name;
     let tag = printer::kind_tag_col(&recipe.meta.kind.to_string());
+    let origin = printer::origin_tag(recipe.local);
 
     let install_ok = is_installed(recipe);
     let install_str = version_msg(
@@ -460,7 +469,7 @@ pub fn status_with_setup_output_w(recipe: &Recipe, config_dir: &Path, declared: 
         .map(|s| setup_status_label(s, config_dir, name))
         .unwrap_or("—");
 
-    let msg = format!("{:<28}{}  {:<12}  {}", install_str, tag, setup_str, declared);
+    let msg = format!("{:<28}{}  {:<12}  {}  {}", install_str, tag, setup_str, origin, declared);
 
     if install_ok {
         printer::ok_w(name, name_width, &msg);
@@ -527,6 +536,7 @@ mod tests {
             upgrade: None,
             uninstall: None,
             setup,
+            local: false,
         }
     }
 
@@ -554,14 +564,14 @@ mod tests {
     }
 
     #[test]
-    fn resolve_src_defaults_to_config_dir_slash_name() {
+    fn resolve_src_defaults_to_config_dir_config_slash_name() {
         // arrange
         let setup = make_setup("~/.tmux.conf", true, None);
         let config_dir = std::path::PathBuf::from("/home/user/.config/qwert");
         // act
         let src = resolve_from(&setup, "tmux", &config_dir);
         // assert
-        assert_eq!(src, std::path::PathBuf::from("/home/user/.config/qwert/tmux"));
+        assert_eq!(src, std::path::PathBuf::from("/home/user/.config/qwert/config/tmux"));
     }
 
     #[test]

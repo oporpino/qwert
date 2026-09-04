@@ -17,7 +17,7 @@ fn default_kind() -> RecipeKind {
     }
 }
 
-fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<SetupFile>) -> Recipe {
+fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<SetupFile>, local: bool) -> Recipe {
     let meta = install.as_ref().map(|i| i.meta.clone()).unwrap_or_else(|| RecipeMeta {
         name: name.to_string(),
         version: String::new(),
@@ -48,21 +48,34 @@ fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<Setup
         upgrade: install.as_ref().and_then(|i| i.upgrade.clone()),
         uninstall: install.as_ref().and_then(|i| i.uninstall.clone()),
         setup: recipe_setup,
+        local,
     }
 }
 
-/// Find a recipe by name — loads from <recipes_dir>/<name>/install.toml and/or setup.toml
-pub fn find(name: &str, recipes_dir: &Path) -> Option<Recipe> {
-    let dir = recipes_dir.join(name);
-    let install: Option<InstallFile> = load_toml_opt(&dir.join("install.toml"));
-    let setup: Option<SetupFile> = load_toml_opt(&dir.join("setup.toml"));
+/// Find a recipe in a single directory tree (no precedence).
+fn find_in(dir: &Path, name: &str) -> Option<Recipe> {
+    let install: Option<InstallFile> = load_toml_opt(&dir.join(name).join("install.toml"));
+    let setup: Option<SetupFile> = load_toml_opt(&dir.join(name).join("setup.toml"));
     if install.is_none() && setup.is_none() {
         return None;
     }
-    Some(assemble_recipe(name, install, setup))
+    Some(assemble_recipe(name, install, setup, false))
 }
 
-/// Load all recipes from subdirectories
+/// Find a recipe by name — checks local user recipes (~/.qwert/recipes) first,
+/// then the remote cache. Local recipes take precedence on name collision.
+pub fn find(name: &str, recipes_dir: &Path) -> Option<Recipe> {
+    let local_dir = crate::config::qwert_yml::config_dir().join("recipes");
+    if local_dir.is_dir() {
+        if let Some(mut recipe) = find_in(&local_dir, name) {
+            recipe.local = true;
+            return Some(recipe);
+        }
+    }
+    find_in(recipes_dir, name)
+}
+
+/// Load all recipes from subdirectories (remote cache only — used by search).
 pub fn load_all(recipes_dir: &Path) -> Vec<Recipe> {
     let mut recipes = Vec::new();
 
@@ -74,7 +87,7 @@ pub fn load_all(recipes_dir: &Path) -> Vec<Recipe> {
         let path = entry.path();
         if path.is_dir() {
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if let Some(recipe) = find(name, recipes_dir) {
+            if let Some(recipe) = find_in(recipes_dir, name) {
                 recipes.push(recipe);
             }
         }
@@ -225,5 +238,29 @@ symlink = true
         let recipes = load_all(dir);
         // assert
         assert!(recipes.is_empty());
+    }
+
+    #[test]
+    fn find_in_marks_recipe_remote() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_test_find_in_remote");
+        make_recipe_dir(&dir, "tmux", Some(INSTALL_TOML), None);
+        // act
+        let recipe = find_in(&dir, "tmux").unwrap();
+        // assert
+        assert!(!recipe.local);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn load_all_recipes_are_not_local() {
+        // arrange
+        let dir = std::env::temp_dir().join("qwert_test_load_all_local_flag");
+        make_recipe_dir(&dir, "tmux", Some(INSTALL_TOML), None);
+        // act
+        let recipes = load_all(&dir);
+        // assert
+        assert!(!recipes[0].local);
+        fs::remove_dir_all(&dir).ok();
     }
 }

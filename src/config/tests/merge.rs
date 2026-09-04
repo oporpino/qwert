@@ -14,7 +14,7 @@ fn write_file(dir: &Path, rel: &str, content: &str) {
 fn materialize_returns_none_when_no_overrides() {
     // arrange
     let config_dir = build_config("no_overrides");
-    write_file(&config_dir.join("nvim"), "init.lua", "base");
+    write_file(&config_dir.join("config").join("nvim"), "init.lua", "base");
     let data_dir = build_data("no_overrides");
     // act
     let result = materialize("nvim", &["dev".into()], &config_dir, &data_dir).unwrap();
@@ -41,7 +41,7 @@ fn materialize_returns_none_when_base_missing() {
 fn materialize_merges_base_with_role_override() {
     // arrange
     let config_dir = build_config("merge");
-    let nvim = config_dir.join("nvim");
+    let nvim = config_dir.join("config").join("nvim");
     write_file(&nvim, "init.lua", "base init");
     write_file(&nvim, "lua/plugins.lua", "base plugins");
     write_file(&nvim, "overrides/dev/init.lua", "dev init");
@@ -68,7 +68,7 @@ fn materialize_merges_base_with_role_override() {
 fn materialize_last_role_wins() {
     // arrange
     let config_dir = build_config("last");
-    let nvim = config_dir.join("nvim");
+    let nvim = config_dir.join("config").join("nvim");
     write_file(&nvim, "init.lua", "base");
     write_file(&nvim, "overrides/dev/init.lua", "dev version");
     write_file(&nvim, "overrides/server/init.lua", "server version");
@@ -91,7 +91,7 @@ fn materialize_last_role_wins() {
 fn materialize_recreates_dir_every_time() {
     // arrange — first run with a role, then fresh roles with no overrides for one of them
     let config_dir = build_config("recreate");
-    let nvim = config_dir.join("nvim");
+    let nvim = config_dir.join("config").join("nvim");
     write_file(&nvim, "init.lua", "base");
     write_file(&nvim, "overrides/dev/init.lua", "dev init");
     write_file(&nvim, "overrides/server/extra.txt", "server extra");
