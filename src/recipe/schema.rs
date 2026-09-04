@@ -100,10 +100,30 @@ pub struct RecipeSetup {
     pub to: String,
     #[serde(default)]
     pub symlink: bool,
+    /// What kind of thing `to` expects at the destination (file or directory).
+    /// Lets qwert validate the config.yml source and guide the user.
+    #[serde(default)]
+    pub dest: Option<DestKind>,
     pub macos: Option<Commands>,
     pub debian: Option<Commands>,
     pub arch: Option<Commands>,
     pub undo: Option<SetupUndo>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum DestKind {
+    File,
+    Dir,
+}
+
+impl std::fmt::Display for DestKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DestKind::File => write!(f, "file"),
+            DestKind::Dir => write!(f, "directory"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -130,6 +150,8 @@ pub struct SetupFile {
     pub to: String,
     #[serde(default)]
     pub symlink: bool,
+    #[serde(default)]
+    pub dest: Option<DestKind>,
     pub macos: Option<Commands>,
     pub debian: Option<Commands>,
     pub arch: Option<Commands>,
@@ -373,6 +395,7 @@ arch = "echo arch-setup"
             from: None,
             to: "~/.config/iterm2".into(),
             symlink: false,
+            dest: None,
             macos: Some(Commands::One("defaults write com.foo bar".into())),
             debian: None,
             arch: None,
@@ -391,6 +414,7 @@ arch = "echo arch-setup"
             from: None,
             to: "/etc/foo".into(),
             symlink: false,
+            dest: None,
             macos: None,
             debian: Some(Commands::One("ln -s foo bar".into())),
             arch: None,
@@ -409,6 +433,7 @@ arch = "echo arch-setup"
             from: None,
             to: "~/.tmux.conf".into(),
             symlink: true,
+            dest: None,
             macos: None,
             debian: None,
             arch: None,
@@ -427,6 +452,7 @@ arch = "echo arch-setup"
             from: None,
             to: "~/.config/iterm2".into(),
             symlink: false,
+            dest: None,
             macos: None,
             debian: None,
             arch: None,
@@ -449,6 +475,7 @@ arch = "echo arch-setup"
             from: None,
             to: "~/.tmux.conf".into(),
             symlink: true,
+            dest: None,
             macos: None,
             debian: None,
             arch: None,

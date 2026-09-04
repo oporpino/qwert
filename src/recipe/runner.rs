@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::schema::{Recipe, RecipeSetup};
+use super::schema::{DestKind, Recipe, RecipeSetup};
 use crate::config::qwert_yml;
 use crate::platform;
 use crate::platform::fs as pfs;
@@ -263,12 +263,26 @@ fn run_setup_section(name: &str, s: &RecipeSetup, from: Option<PathBuf>) -> RunR
     let from = match from {
         Some(from) => from,
         None => {
+            let kind_hint = s.dest.as_ref().map(|k| format!(" — expected a {}", k)).unwrap_or_default();
             return RunResult::Failed(format!(
-                "{} setup needs a source — declare it in config.yml under 'profiles.<profile>.configs.{}'",
-                name, name
+                "{} setup needs a source{} — declare it in config.yml under 'profiles.<profile>.configs.{}'",
+                name, kind_hint, name
             ));
         }
     };
+
+    // Validate the source's file/dir kind matches what the recipe expects, so the
+    // symlink can't silently link a file where a directory is needed (or vice versa).
+    if let Some(kind) = &s.dest {
+        let expect_dir = *kind == DestKind::Dir;
+        let actual = if from.is_dir() { "directory" } else { "file" };
+        if from.exists() && from.is_dir() != expect_dir {
+            return RunResult::Failed(format!(
+                "{}: '{}' is a {}, but '{}' needs a {} — point configs.{} at a {}",
+                name, from.display(), actual, dest.display(), kind, name, kind
+            ));
+        }
+    }
 
     // Symlink
     if s.symlink {
@@ -317,6 +331,7 @@ pub fn setup_inline(name: &str, inline: &qwert_yml::InlineSetup, source: Option<
         from: inline.from.clone(),
         to: inline.to.clone(),
         symlink: inline.symlink,
+        dest: None,
         macos: inline.macos.as_ref().map(to_commands),
         debian: inline.debian.as_ref().map(to_commands),
         arch: inline.arch.as_ref().map(to_commands),
@@ -540,6 +555,7 @@ mod tests {
             from: from.map(|s| s.to_string()),
             to: to.to_string(),
             symlink,
+            dest: None,
             macos: None,
             debian: None,
             arch: None,
@@ -587,6 +603,7 @@ mod tests {
             from: Some(src_file.to_str().unwrap().to_string()),
             to: dest.to_str().unwrap().to_string(),
             symlink: true,
+            dest: Some(DestKind::File),
             macos: None,
             debian: None,
             arch: None,
@@ -602,9 +619,39 @@ mod tests {
     }
 
     #[test]
+    fn setup_validation_rejects_file_source_for_directory_dest() {
+        // arrange — recipe expects a directory, but configs points at a file
+        let dir = std::env::temp_dir().join("qwert_runner_test_kind_mismatch");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("init.lua");
+        fs::write(&file, "data").unwrap();
+        let dest = dir.join("dest");
+
+        let s = RecipeSetup {
+            from: None,
+            to: dest.to_str().unwrap().to_string(),
+            symlink: true,
+            dest: Some(DestKind::Dir),
+            macos: None,
+            debian: None,
+            arch: None,
+            undo: None,
+        };
+        let recipe = make_recipe_with_setup(Some(s));
+        // act — source is a file but dest needs a directory
+        let result = setup(&recipe, Some(&file));
+        // assert — fails with a clear kind-mismatch error, no broken symlink
+        assert!(matches!(result, RunResult::Failed(_)));
+        assert!(!dest.exists());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn setup_symlink_idempotent_when_already_linked() {
         // arrange
         let dir = std::env::temp_dir().join("qwert_runner_test_idempotent");
+        let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         let src = dir.join("src_file");
         let dest = dir.join("dest_link");
@@ -616,6 +663,7 @@ mod tests {
             from: Some(src.to_str().unwrap().to_string()),
             to: dest.to_str().unwrap().to_string(),
             symlink: true,
+            dest: Some(DestKind::File),
             macos: None,
             debian: None,
             arch: None,
@@ -675,6 +723,7 @@ mod tests {
             from: Some(src.to_str().unwrap().to_string()),
             to: dest.to_str().unwrap().to_string(),
             symlink: false,
+            dest: None,
             macos: None,
             debian: None,
             arch: None,
@@ -704,6 +753,7 @@ mod tests {
             from: Some(src.to_str().unwrap().to_string()),
             to: dest.to_str().unwrap().to_string(),
             symlink: true,
+            dest: Some(DestKind::File),
             macos: None,
             debian: None,
             arch: None,
@@ -730,6 +780,7 @@ mod tests {
             from: None,
             to: dest.to_str().unwrap().to_string(),
             symlink: false,
+            dest: None,
             macos: None,
             debian: None,
             arch: None,
@@ -752,6 +803,7 @@ mod tests {
             from: None,
             to: "~/.config/iterm2".into(),
             symlink: false,
+            dest: None,
             macos: Some(Commands::One("defaults write com.foo bar".into())),
             debian: Some(Commands::One("echo debian-setup".into())),
             arch: None,
@@ -808,6 +860,7 @@ mod tests {
             from: Some(src.to_str().unwrap().to_string()),
             to: dest.to_str().unwrap().to_string(),
             symlink: true,
+            dest: Some(DestKind::File),
             macos: None,
             debian: None,
             arch: None,

@@ -8,13 +8,18 @@ fn setup_summary(setup: &RecipeSetup, source: Option<&std::path::Path>) -> Strin
     let dest = &setup.to;
     let label = runner::setup_status_label(setup, source);
     let platform = crate::platform::detect();
+    let kind = setup
+        .dest
+        .as_ref()
+        .map(|k| format!(" ({})", k))
+        .unwrap_or_default();
 
     if !setup.setup_cmds_for(&platform).is_empty() {
         format!("commands  [{}]", label)
     } else if setup.symlink {
-        format!("symlink → {}  [{}]", dest, label)
+        format!("symlink → {}{}  [{}]", dest, kind, label)
     } else {
-        format!("copy → {}  [{}]", dest, label)
+        format!("copy → {}{}  [{}]", dest, kind, label)
     }
 }
 

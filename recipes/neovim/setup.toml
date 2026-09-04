@@ -1,2 +1,3 @@
 to = "~/.config/nvim"
+dest = "dir"
 symlink = true

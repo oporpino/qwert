@@ -1,2 +1,3 @@
 to = "~/.tmux.conf"
+dest = "file"
 symlink = true

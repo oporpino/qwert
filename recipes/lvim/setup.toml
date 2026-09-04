@@ -1,2 +1,3 @@
 to = "~/.config/lvim/config.lua"
+dest = "file"
 symlink = true
