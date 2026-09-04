@@ -11,6 +11,10 @@ pub struct Recipe {
     /// Where the recipe was loaded from — local (~/.qwert/recipes) or remote cache.
     #[serde(default)]
     pub local: bool,
+
+    /// Recipe declares setup but no install (setup-only: e.g. a local agents/skills recipe).
+    #[serde(default)]
+    pub setup_only: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -191,6 +195,7 @@ mod tests {
             uninstall: None,
             setup: None,
             local: false,
+            setup_only: false,
         }
     }
 

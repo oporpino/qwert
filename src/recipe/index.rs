@@ -18,6 +18,7 @@ fn default_kind() -> RecipeKind {
 }
 
 fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<SetupFile>, local: bool) -> Recipe {
+    let setup_only = install.is_none() && setup.is_some();
     let meta = install.as_ref().map(|i| i.meta.clone()).unwrap_or_else(|| RecipeMeta {
         name: name.to_string(),
         version: String::new(),
@@ -49,6 +50,7 @@ fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<Setup
         uninstall: install.as_ref().and_then(|i| i.uninstall.clone()),
         setup: recipe_setup,
         local,
+        setup_only,
     }
 }
 

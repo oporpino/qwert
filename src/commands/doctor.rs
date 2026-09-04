@@ -44,16 +44,16 @@ pub fn run() -> Result<()> {
 
     // Machine identity
     let machine_identity = crate::config::machine::MachineIdentity::load()?;
-    if machine_identity.roles.is_empty() {
-        printer::info("machine roles: none — run `qwert machine <roles>`");
+    let profile = machine_identity.active_profile().to_string();
+    if machine_identity.profile.is_none() {
+        printer::info(&format!("machine profile: none (using '{}') — run `qwert profile <name>`", profile));
     } else {
-        printer::ok("machine roles", &machine_identity.roles.join(", "));
+        printer::ok("machine profile", &profile);
     }
 
     // Tools status
     let config = qwert_yml::QwertConfig::load(&manifest_path)?;
-    let roles = machine_identity.roles;
-    let names = config.tool_names_for_roles(&roles);
+    let names = config.tool_names_for_profile(&profile);
     if !names.is_empty() {
         printer::blank();
         printer::h2("Declared tools");

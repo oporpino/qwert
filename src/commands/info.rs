@@ -77,21 +77,21 @@ pub fn run(name: &str) -> Result<()> {
                 .unwrap_or_else(|| "—".to_string());
             printer::field("setup", &setup_str);
 
-            let roles = config.sections_of_tool(name);
-            if roles.is_empty() {
+            let profiles = config.profiles_of_tool(name);
+            if profiles.is_empty() {
                 printer::field("declared", "no");
             } else {
-                printer::field("declared", &format!("yes ({})", roles.join(", ")));
+                printer::field("declared", &format!("yes ({})", profiles.join(", ")));
             }
         }
         None => {
             printer::field("installed", if crate::platform::which(name) { "yes" } else { "no" });
             printer::field("recipe", "none");
-            let roles = config.sections_of_tool(name);
-            if roles.is_empty() {
+            let profiles = config.profiles_of_tool(name);
+            if profiles.is_empty() {
                 printer::field("declared", "no");
             } else {
-                printer::field("declared", &format!("yes ({})", roles.join(", ")));
+                printer::field("declared", &format!("yes ({})", profiles.join(", ")));
             }
         }
     }

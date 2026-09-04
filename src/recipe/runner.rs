@@ -59,6 +59,11 @@ pub fn install(recipe: &Recipe, recipes_dir: &Path) -> RunResult {
         return RunResult::AlreadyInstalled { version };
     }
 
+    // Setup-only recipes (e.g. a local agents/skills recipe) install nothing.
+    if recipe.setup_only {
+        return RunResult::Installed;
+    }
+
     for dep_name in &recipe.meta.depends {
         match super::index::find(dep_name, recipes_dir) {
             Some(dep) => {
@@ -537,6 +542,7 @@ mod tests {
             uninstall: None,
             setup,
             local: false,
+            setup_only: false,
         }
     }
 

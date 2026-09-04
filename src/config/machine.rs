@@ -2,40 +2,51 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-/// Machine-local identity: which roles this machine should apply.
-/// Stored in ~/.local/share/qwert/machine.yml; overridden by QWERT_ROLES env var.
+/// Machine-local identity: which profile this machine should apply.
+/// A machine runs exactly one profile. Stored in ~/.local/share/qwert/machine.yml;
+/// overridden by QWERT_PROFILE env var.
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct MachineIdentity {
-    /// Ordered role names — order defines override precedence (last wins).
+    /// The active profile for this machine. None = not configured yet.
     #[serde(default)]
-    pub roles: Vec<String>,
+    pub profile: Option<String>,
 }
 
 impl MachineIdentity {
-    /// Load from env override (QWERT_ROLES, comma-separated) or machine.yml.
+    /// Load from env override (QWERT_PROFILE) or machine.yml.
     pub fn load() -> Result<Self> {
-        if let Ok(env) = std::env::var("QWERT_ROLES") {
-            return Ok(Self::from_env(&env));
+        if let Ok(env) = std::env::var("QWERT_PROFILE") {
+            let profile = if env.trim().is_empty() {
+                None
+            } else {
+                Some(env.trim().to_string())
+            };
+            return Ok(Self { profile });
         }
         Self::load_from(&machine_path())
+    }
+
+    /// The active profile name, or "default" when not configured.
+    pub fn active_profile(&self) -> &str {
+        self.profile.as_deref().unwrap_or(super::qwert_yml::PROFILE_DEFAULT)
     }
 
     pub fn save(&self) -> Result<()> {
         self.save_to(&machine_path())
     }
 
-    pub fn set_roles(&mut self, roles: Vec<String>) {
-        self.roles = roles;
+    pub fn set_profile(&mut self, profile: String) {
+        self.profile = Some(profile);
     }
 
-    /// Parse a comma-separated role list (QWERT_ROLES override).
+    /// Parse a profile name from env override.
     pub fn from_env(env: &str) -> Self {
-        let roles: Vec<String> = env
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-        Self { roles }
+        let profile = if env.trim().is_empty() {
+            None
+        } else {
+            Some(env.trim().to_string())
+        };
+        Self { profile }
     }
 
     pub fn load_from(path: &Path) -> Result<Self> {

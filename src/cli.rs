@@ -122,10 +122,10 @@ pub enum Command {
     /// Show qwert version
     Version,
 
-    /// Show or set this machine's roles
-    Machine {
-        /// Roles for this machine (space separated); no args shows current roles
-        roles: Vec<String>,
+    /// Show or set this machine's profile
+    Profile {
+        /// Profile name for this machine; no args shows the current profile
+        name: Option<String>,
     },
 
     /// Health check — verify installation and symlinks
@@ -164,9 +164,9 @@ pub enum UseTarget {
         /// Path to the script
         #[arg(long)]
         path: String,
-        /// Role to assign the script to (default: shared)
-        #[arg(long, default_value = "shared")]
-        role: String,
+        /// Profile to assign the script to
+        #[arg(long)]
+        profile: Option<String>,
     },
 }
 

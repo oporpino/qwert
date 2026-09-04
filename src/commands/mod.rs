@@ -8,7 +8,7 @@ pub mod hook;
 pub mod info;
 pub mod install_cmd;
 pub mod list;
-pub mod machine_cmd;
+pub mod profile_cmd;
 pub mod recipes_cmd;
 pub mod reinstall;
 pub mod search;

@@ -9,14 +9,14 @@ mod ui;
 use clap::Parser;
 use cli::{Cli, Command, ConfigAction, RecipesAction, SelfAction, UseTarget};
 
-/// Extract `--role <name>` (or `--role=<name>`) from `use <tool>` args.
-fn extract_role(args: &[String]) -> Option<String> {
+/// Extract `--profile <name>` (or `--profile=<name>`) from `use <tool>` args.
+fn extract_profile(args: &[String]) -> Option<String> {
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
-        if let Some(v) = arg.strip_prefix("--role=") {
+        if let Some(v) = arg.strip_prefix("--profile=") {
             return Some(v.to_string());
         }
-        if arg == "--role" {
+        if arg == "--profile" {
             return iter.next().cloned();
         }
     }
@@ -28,13 +28,13 @@ fn main() {
 
     let result = match cli.command {
         Command::Use { target } => match target {
-            UseTarget::Script { hook, path, role } => commands::use_cmd::use_script(&hook, &path, &role),
+            UseTarget::Script { hook, path, profile } => commands::use_cmd::use_script(&hook, &path, profile.as_deref()),
             UseTarget::Tool(args) => {
                 let name = args.first().map(|s| s.as_str()).unwrap_or("");
                 let no_install = args.contains(&"--no-install".to_string());
-                let role = extract_role(&args).unwrap_or_else(|| "shared".to_string());
+                let profile = extract_profile(&args);
                 let version = args.get(1).filter(|v| !v.starts_with('-')).map(|s| s.as_str());
-                commands::use_cmd::use_tool(name, version, &role, no_install)
+                commands::use_cmd::use_tool(name, version, profile.as_deref(), no_install)
             }
         },
 
@@ -71,7 +71,7 @@ fn main() {
             Ok(())
         }
 
-        Command::Machine { roles } => commands::machine_cmd::run(&roles),
+        Command::Profile { name } => commands::profile_cmd::run(name.as_deref()),
 
         Command::Completions { shell } => commands::completions::run(&shell),
 

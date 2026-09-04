@@ -2,23 +2,23 @@ use crate::config::machine::MachineIdentity;
 use std::fs;
 
 #[test]
-fn from_env_parses_comma_separated_roles() {
+fn from_env_parses_profile() {
     // arrange
-    let env = "dev, server, macos";
+    let env = "dev";
     // act
     let identity = MachineIdentity::from_env(env);
     // assert
-    assert_eq!(identity.roles, vec!["dev", "server", "macos"]);
+    assert_eq!(identity.profile.as_deref(), Some("dev"));
 }
 
 #[test]
-fn from_env_trims_and_drops_empty_entries() {
+fn from_env_empty_is_none() {
     // arrange
-    let env = "dev, ,,server,";
+    let env = "  ";
     // act
     let identity = MachineIdentity::from_env(env);
     // assert
-    assert_eq!(identity.roles, vec!["dev", "server"]);
+    assert_eq!(identity.profile, None);
 }
 
 #[test]
@@ -28,39 +28,59 @@ fn load_returns_default_when_file_missing() {
     // act
     let identity = MachineIdentity::load_from(&path).unwrap();
     // assert
-    assert!(identity.roles.is_empty());
+    assert_eq!(identity.profile, None);
 }
 
 #[test]
 fn save_to_and_load_from_roundtrip() {
     // arrange
     let path = std::env::temp_dir().join("qwert_machine_roundtrip.yml");
-    let identity = MachineIdentity { roles: vec!["dev".into(), "server".into()] };
+    let identity = MachineIdentity { profile: Some("dev".into()) };
     // act
     identity.save_to(&path).unwrap();
     let loaded = MachineIdentity::load_from(&path).unwrap();
     fs::remove_file(&path).ok();
     // assert
-    assert_eq!(loaded.roles, vec!["dev", "server"]);
+    assert_eq!(loaded.profile.as_deref(), Some("dev"));
 }
 
 #[test]
 fn env_override_wins_over_file() {
-    // arrange — QWERT_ROLES takes precedence over machine.yml contents
-    std::env::set_var("QWERT_ROLES", "dev, macos");
+    // arrange — QWERT_PROFILE takes precedence over machine.yml contents
+    std::env::set_var("QWERT_PROFILE", "dev");
     // act
     let loaded = MachineIdentity::load().unwrap();
-    std::env::remove_var("QWERT_ROLES");
+    std::env::remove_var("QWERT_PROFILE");
     // assert
-    assert_eq!(loaded.roles, vec!["dev", "macos"]);
+    assert_eq!(loaded.profile.as_deref(), Some("dev"));
 }
 
 #[test]
-fn set_roles_replaces_existing_roles() {
+fn set_profile_replaces_existing() {
     // arrange
-    let mut identity = MachineIdentity { roles: vec!["dev".into()] };
+    let mut identity = MachineIdentity { profile: Some("dev".into()) };
     // act
-    identity.set_roles(vec!["server".into()]);
+    identity.set_profile("server".into());
     // assert
-    assert_eq!(identity.roles, vec!["server"]);
+    assert_eq!(identity.profile.as_deref(), Some("server"));
+}
+
+#[test]
+fn active_profile_falls_back_to_default() {
+    // arrange
+    let identity = MachineIdentity { profile: None };
+    // act
+    let active = identity.active_profile();
+    // assert
+    assert_eq!(active, crate::config::qwert_yml::PROFILE_DEFAULT);
+}
+
+#[test]
+fn active_profile_returns_set_profile() {
+    // arrange
+    let identity = MachineIdentity { profile: Some("server".into()) };
+    // act
+    let active = identity.active_profile();
+    // assert
+    assert_eq!(active, "server");
 }

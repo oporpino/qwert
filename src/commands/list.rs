@@ -7,9 +7,9 @@ use crate::ui::printer;
 pub fn run() -> Result<()> {
     let manifest_path = qwert_yml::manifest_path();
     let config = qwert_yml::QwertConfig::load(&manifest_path)?;
-    let roles = crate::config::machine::MachineIdentity::load()?.roles;
+    let profile = crate::config::machine::MachineIdentity::load()?.active_profile().to_string();
 
-    let names = config.tool_names_for_roles(&roles);
+    let names = config.tool_names_for_profile(&profile);
 
     if names.is_empty() {
         printer::info("No tools declared. Run `qwert use <tool>` to add one.");
@@ -23,15 +23,18 @@ pub fn run() -> Result<()> {
     let name_width = names.iter().map(|n| n.len()).max().unwrap_or(0).max(12) + 2;
 
     printer::blank();
+    printer::info(&format!("profile: {}", profile));
+    printer::blank();
 
     for name in &names {
-        let sections = config.sections_of_tool(name);
-        let role_tag = sections
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>()
-            .join(",");
-        let declared = format!("{} [{}]", config.version_of_for_roles(name, &roles), role_tag);
+        let declared = config.version_of(&profile, name);
+        let profiles = config.profiles_of_tool(name);
+        let tag = if profiles.is_empty() {
+            String::new()
+        } else {
+            format!(" [{}]", profiles.join(","))
+        };
+        let declared = format!("{}{}", declared, tag);
         match index::find(name, &recipes_dir) {
             Some(recipe) => runner::status_with_setup_output_w(&recipe, &config_dir, &declared, name_width),
             None => {

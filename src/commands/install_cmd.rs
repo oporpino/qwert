@@ -4,14 +4,21 @@ use crate::config::qwert_yml;
 use crate::recipe::{index, runner};
 use crate::ui::printer;
 
+fn active_profile() -> String {
+    crate::config::machine::MachineIdentity::load()
+        .map(|m| m.active_profile().to_string())
+        .unwrap_or_else(|_| qwert_yml::PROFILE_DEFAULT.to_string())
+}
+
 pub fn run(name: &str) -> Result<()> {
     let manifest_path = qwert_yml::manifest_path();
     let mut config = qwert_yml::QwertConfig::load(&manifest_path)?;
+    let profile = active_profile();
 
-    if !config.declared_anywhere(name) {
-        config.add_tool(name, crate::config::qwert_yml::SHARED, None);
+    if !config.has_tool_in(&profile, name) {
+        config.add_tool(&profile, name, None);
         config.save(&manifest_path)?;
-        printer::ok(name, "added to qwert.yml");
+        printer::ok(name, &format!("added to qwert.yml ({})", profile));
     }
 
     let recipes_dir = index::cache_dir()

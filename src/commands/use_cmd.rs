@@ -4,24 +4,35 @@ use crate::config::qwert_yml;
 use crate::recipe::{index, runner};
 use crate::ui::printer;
 
-pub fn use_tool(name: &str, version: Option<&str>, role: &str, no_install: bool) -> Result<()> {
+/// Resolve the profile to declare toward: explicit flag, else active machine profile,
+/// else "default".
+fn resolve_profile(explicit: Option<&str>) -> String {
+    if let Some(p) = explicit {
+        return p.to_string();
+    }
+    crate::config::machine::MachineIdentity::load()
+        .map(|m| m.active_profile().to_string())
+        .unwrap_or_else(|_| qwert_yml::PROFILE_DEFAULT.to_string())
+}
+
+pub fn use_tool(name: &str, version: Option<&str>, profile: Option<&str>, no_install: bool) -> Result<()> {
+    let profile = resolve_profile(profile);
     let manifest_path = qwert_yml::manifest_path();
     let mut config = qwert_yml::QwertConfig::load(&manifest_path)?;
 
-    if config.has_tool_in(role, name) && version.is_none() {
-        printer::info(&format!("{} is already declared in qwert.yml ({})", name, role));
+    if config.has_tool_in(&profile, name) && version.is_none() {
+        printer::info(&format!("{} is already declared in qwert.yml ({})", name, profile));
     } else {
-        config.add_tool(name, role, version);
+        config.add_tool(&profile, name, version);
         config.save(&manifest_path)?;
         let ver_label = version.unwrap_or("latest");
-        printer::ok(name, &format!("added to qwert.yml ({}/{})", role, ver_label));
+        printer::ok(name, &format!("added to qwert.yml ({}/{})", profile, ver_label));
     }
 
     if no_install {
         return Ok(());
     }
 
-    let machine_roles = crate::config::machine::MachineIdentity::load()?.roles;
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
     let config_dir = qwert_yml::config_dir();
@@ -33,7 +44,7 @@ pub fn use_tool(name: &str, version: Option<&str>, role: &str, no_install: bool)
             runner::install_with_output(&recipe, &recipes_dir);
             if recipe.setup.is_some() {
                 runner::setup_with_output(&recipe, &config_dir);
-            } else if let Some(inline) = config.setup_of_for_roles(name, &machine_roles) {
+            } else if let Some(inline) = config.setup_of(&profile, name) {
                 runner::setup_inline_with_output(name, inline, &config_dir);
             }
         }
@@ -54,7 +65,7 @@ pub fn use_tool(name: &str, version: Option<&str>, role: &str, no_install: bool)
                 }
             }
             // Run inline setup if defined
-            if let Some(inline) = config.setup_of_for_roles(name, &machine_roles) {
+            if let Some(inline) = config.setup_of(&profile, name) {
                 runner::setup_inline_with_output(name, inline, &config_dir);
             }
         }
@@ -67,14 +78,15 @@ pub fn use_tool(name: &str, version: Option<&str>, role: &str, no_install: bool)
     Ok(())
 }
 
-pub fn use_script(hook: &str, path: &str, role: &str) -> Result<()> {
+pub fn use_script(hook: &str, path: &str, profile: Option<&str>) -> Result<()> {
+    let profile = resolve_profile(profile);
     let manifest_path = qwert_yml::manifest_path();
     let mut config = qwert_yml::QwertConfig::load(&manifest_path)?;
 
-    config.add_hook(role, hook, path);
+    config.add_hook(&profile, hook, path);
     config.save(&manifest_path)?;
 
-    printer::ok("script", &format!("added to {} hook ({}) in qwert.yml", hook, role));
+    printer::ok("script", &format!("added to {} hook ({}) in qwert.yml", hook, profile));
     printer::info("Restart your shell or run `source ~/.zshrc` to apply.");
 
     Ok(())

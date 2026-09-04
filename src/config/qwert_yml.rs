@@ -3,8 +3,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::path::{Path, PathBuf};
 
-/// The implicit, always-on role section. Base of the merge stack.
-pub const SHARED: &str = "shared";
+/// Profile name used when a legacy config (top-level `tools:`) is loaded.
+pub const PROFILE_DEFAULT: &str = "default";
 
 /// Backward-compatible tool entry: simple version string or full config object.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -25,7 +25,7 @@ fn default_version() -> String {
     "latest".into()
 }
 
-/// Inline setup defined in qwert.yml — mirrors RecipeSetup without importing recipe module.
+/// Inline setup defined in config.yml — mirrors RecipeSetup without importing recipe module.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InlineSetup {
     pub from: Option<String>,
@@ -63,9 +63,9 @@ impl StringOrList {
     }
 }
 
-/// Hooks for a single role section.
-#[derive(Debug, Default, Deserialize, Serialize)]
-pub struct RoleHooks {
+/// Hooks for a single profile.
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+pub struct Hooks {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub prepare: Vec<String>,
 
@@ -73,135 +73,61 @@ pub struct RoleHooks {
     pub init: Vec<String>,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+/// A single profile: its own list of tools and hooks.
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+pub struct Profile {
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub tools: IndexMap<String, ToolEntry>,
+
+    #[serde(default, skip_serializing_if = "hooks_empty")]
+    pub hooks: Hooks,
+}
+
+fn hooks_empty(h: &Hooks) -> bool {
+    h.prepare.is_empty() && h.init.is_empty()
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[serde(from = "QwertConfigRaw", into = "QwertConfigRaw")]
 pub struct QwertConfig {
-    /// role section → tool name → entry. "shared" is implicit.
-    #[serde(
-        default,
-        deserialize_with = "deserialize_tools",
-        serialize_with = "serialize_sections",
-        skip_serializing_if = "sections_empty"
-    )]
-    pub tools: IndexMap<String, IndexMap<String, ToolEntry>>,
-
-    /// role section → hooks. "shared" is implicit.
-    #[serde(
-        default,
-        deserialize_with = "deserialize_hooks",
-        serialize_with = "serialize_hook_sections",
-        skip_serializing_if = "hook_sections_empty"
-    )]
-    pub hooks: IndexMap<String, RoleHooks>,
+    /// profile name → profile (tools + hooks).
+    pub profiles: IndexMap<String, Profile>,
 }
 
-fn sections_empty(tools: &IndexMap<String, IndexMap<String, ToolEntry>>) -> bool {
-    tools.is_empty()
+/// Raw shape used for (de)serialization — supports both legacy flat (top-level
+/// `tools:`/`hooks:`) and the new `profiles:` form.
+#[derive(Debug, Default, Deserialize, Serialize)]
+struct QwertConfigRaw {
+    #[serde(default)]
+    profiles: IndexMap<String, Profile>,
+
+    #[serde(default)]
+    tools: IndexMap<String, ToolEntry>,
+
+    #[serde(default)]
+    hooks: Hooks,
 }
 
-fn hook_sections_empty(hooks: &IndexMap<String, RoleHooks>) -> bool {
-    hooks.is_empty()
-}
-
-fn tool_config_keys() -> [&'static str; 2] {
-    ["version", "setup"]
-}
-
-/// A value mapping is a "section" iff it has a key that is not a tool-config key.
-fn is_tool_section(v: &serde_yml::Value) -> bool {
-    match v.as_mapping() {
-        Some(m) => m.iter().any(|(k, _)| match k.as_str() {
-            Some(k) => !tool_config_keys().contains(&k),
-            None => true,
-        }),
-        None => false,
-    }
-}
-
-fn deserialize_tools<'de, D>(d: D) -> Result<IndexMap<String, IndexMap<String, ToolEntry>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let value = serde_yml::Value::deserialize(d)?;
-    let Some(map) = value.as_mapping() else {
-        return Ok(IndexMap::new());
-    };
-
-    let all_sections = map.iter().all(|(_, v)| is_tool_section(v));
-
-    if all_sections {
-        let mut sections = IndexMap::new();
-        for (k, v) in map {
-            let section: IndexMap<String, ToolEntry> =
-                serde_yml::from_value(v.clone()).map_err(serde::de::Error::custom)?;
-            let name = k.as_str().map(|s| s.to_string()).unwrap_or_default();
-            sections.insert(name, section);
+impl From<QwertConfigRaw> for QwertConfig {
+    fn from(raw: QwertConfigRaw) -> Self {
+        if !raw.profiles.is_empty() {
+            QwertConfig { profiles: raw.profiles }
+        } else {
+            // Legacy flat config → single "default" profile.
+            let mut profiles = IndexMap::new();
+            profiles.insert(
+                PROFILE_DEFAULT.to_string(),
+                Profile { tools: raw.tools, hooks: raw.hooks },
+            );
+            QwertConfig { profiles }
         }
-        Ok(sections)
-    } else {
-        let flat: IndexMap<String, ToolEntry> =
-            serde_yml::from_value(serde_yml::Value::Mapping(map.clone()))
-                .map_err(serde::de::Error::custom)?;
-        let mut sections = IndexMap::new();
-        sections.insert(SHARED.to_string(), flat);
-        Ok(sections)
     }
 }
 
-/// Flat `hooks: {prepare, init}` (values are arrays) → shared.
-/// Sectioned `hooks: {shared: {...}, dev: {...}}` (values are mappings) → sections.
-fn deserialize_hooks<'de, D>(d: D) -> Result<IndexMap<String, RoleHooks>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let value = serde_yml::Value::deserialize(d)?;
-    let Some(map) = value.as_mapping() else {
-        return Ok(IndexMap::new());
-    };
-
-    let all_sections = map.iter().all(|(_, v)| v.as_mapping().is_some());
-
-    if all_sections {
-        let mut sections = IndexMap::new();
-        for (k, v) in map {
-            let rh: RoleHooks = serde_yml::from_value(v.clone()).map_err(serde::de::Error::custom)?;
-            let name = k.as_str().map(|s| s.to_string()).unwrap_or_default();
-            sections.insert(name, rh);
-        }
-        Ok(sections)
-    } else {
-        let flat: RoleHooks = serde_yml::from_value(serde_yml::Value::Mapping(map.clone()))
-            .map_err(serde::de::Error::custom)?;
-        let mut sections = IndexMap::new();
-        sections.insert(SHARED.to_string(), flat);
-        Ok(sections)
+impl From<QwertConfig> for QwertConfigRaw {
+    fn from(cfg: QwertConfig) -> Self {
+        QwertConfigRaw { profiles: cfg.profiles, tools: IndexMap::new(), hooks: Hooks::default() }
     }
-}
-
-/// Serialize as nested sections (drops empty sections).
-fn serialize_sections<S>(
-    value: &IndexMap<String, IndexMap<String, ToolEntry>>,
-    s: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    let filtered: IndexMap<_, _> = value
-        .iter()
-        .filter(|(_, tools)| !tools.is_empty())
-        .collect();
-    serde::Serialize::serialize(&filtered, s)
-}
-
-/// Serialize as nested sections (drops empty sections).
-fn serialize_hook_sections<S>(value: &IndexMap<String, RoleHooks>, s: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    let filtered: IndexMap<_, _> = value
-        .iter()
-        .filter(|(_, hooks)| !hooks.prepare.is_empty() || !hooks.init.is_empty())
-        .collect();
-    serde::Serialize::serialize(&filtered, s)
 }
 
 impl QwertConfig {
@@ -224,38 +150,49 @@ impl QwertConfig {
         Ok(())
     }
 
-    /// Non-shared sections that have at least one tool declared.
-    pub fn role_sections(&self) -> Vec<String> {
-        self.tools
+    /// Names of all profiles.
+    pub fn profile_names(&self) -> Vec<String> {
+        self.profiles.keys().cloned().collect()
+    }
+
+    /// Does a profile exist (even with no tools)?
+    pub fn has_profile(&self, profile: &str) -> bool {
+        self.profiles.contains_key(profile)
+    }
+
+    /// Names of profiles that declare at least one tool.
+    pub fn profiles_with_tools(&self) -> Vec<String> {
+        self.profiles
             .iter()
-            .filter(|(k, v)| k.as_str() != SHARED && !v.is_empty())
+            .filter(|(_, p)| !p.tools.is_empty())
             .map(|(k, _)| k.clone())
             .collect()
     }
 
-    /// Get (or create) the tool map for a role section.
-    pub fn ensure_section(&mut self, role: &str) -> &mut IndexMap<String, ToolEntry> {
-        self.tools.entry(role.to_string()).or_default()
+    /// Get (or create) the profile.
+    pub fn ensure_profile(&mut self, profile: &str) -> &mut Profile {
+        self.profiles.entry(profile.to_string()).or_default()
     }
 
-    /// Is a tool declared in any section?
+    /// Is a tool declared in any profile?
     pub fn declared_anywhere(&self, name: &str) -> bool {
-        self.tools.values().any(|s| s.contains_key(name))
+        self.profiles.values().any(|p| p.tools.contains_key(name))
     }
 
-    /// Is a tool declared in a specific section?
-    pub fn has_tool_in(&self, role: &str, name: &str) -> bool {
-        self.tools
-            .get(role)
-            .map(|s| s.contains_key(name))
+    /// Is a tool declared in a specific profile?
+    pub fn has_tool_in(&self, profile: &str, name: &str) -> bool {
+        self.profiles
+            .get(profile)
+            .map(|p| p.tools.contains_key(name))
             .unwrap_or(false)
     }
 
-    /// Add or update a tool in a role section. `version` defaults to "latest" if None.
+    /// Add or update a tool in a profile. `version` defaults to "latest" if None.
     /// Preserves existing inline setup when updating an existing entry.
-    pub fn add_tool(&mut self, name: &str, role: &str, version: Option<&str>) {
+    pub fn add_tool(&mut self, profile: &str, name: &str, version: Option<&str>) {
         let ver = version.unwrap_or("latest").to_string();
-        self.ensure_section(role)
+        self.ensure_profile(profile)
+            .tools
             .entry(name.to_string())
             .and_modify(|e| match e {
                 ToolEntry::Simple(v) => *v = ver.clone(),
@@ -264,87 +201,80 @@ impl QwertConfig {
             .or_insert_with(|| ToolEntry::Simple(ver));
     }
 
-    /// Remove a tool from every section; drop sections that become empty.
+    /// Remove a tool from every profile; drop profiles that become empty.
     pub fn remove_tool(&mut self, name: &str) {
-        for section in self.tools.values_mut() {
-            section.shift_remove(name);
+        for profile in self.profiles.values_mut() {
+            profile.tools.shift_remove(name);
         }
-        self.tools.retain(|_, s| !s.is_empty());
+        self.profiles.retain(|_, p| !p.tools.is_empty() || !hooks_empty(&p.hooks));
     }
 
-    /// Ordered active sections: [shared] then roles in machine order (dedup, shared excluded).
-    pub fn effective_sections(&self, roles: &[String]) -> Vec<String> {
-        let mut v = vec![SHARED.to_string()];
-        for r in roles {
-            let r = r.trim();
-            if !r.is_empty() && r != SHARED && !v.contains(&r.to_string()) {
-                v.push(r.to_string());
-            }
+    /// Tools declared for the given profile, in declaration order.
+    pub fn tool_names_for_profile(&self, profile: &str) -> Vec<String> {
+        match self.profiles.get(profile) {
+            Some(p) => p.tools.keys().cloned().collect(),
+            None => Vec::new(),
         }
-        v
     }
 
-    /// Union of tool names across active sections (first-seen order, dedup).
-    pub fn tool_names_for_roles(&self, roles: &[String]) -> Vec<String> {
-        let mut names: Vec<String> = Vec::new();
-        for section in self.effective_sections(roles) {
-            if let Some(tools) = self.tools.get(&section) {
-                for name in tools.keys() {
-                    if !names.contains(name) {
-                        names.push(name.clone());
-                    }
-                }
-            }
+    /// Version for a tool in a profile. Defaults to "latest".
+    pub fn version_of(&self, profile: &str, name: &str) -> &str {
+        match self.profiles.get(profile).and_then(|p| p.tools.get(name)) {
+            Some(ToolEntry::Simple(v)) => v.as_str(),
+            Some(ToolEntry::Full(c)) => c.version.as_str(),
+            None => "latest",
         }
-        names
     }
 
-    /// Version for a tool across active sections — the last declaring section wins.
-    pub fn version_of_for_roles(&self, name: &str, roles: &[String]) -> &str {
-        for section in self.effective_sections(roles).iter().rev() {
-            if let Some(entry) = self.tools.get(section).and_then(|s| s.get(name)) {
-                return match entry {
-                    ToolEntry::Simple(v) => v.as_str(),
-                    ToolEntry::Full(c) => c.version.as_str(),
-                };
-            }
+    /// Inline setup for a tool declared in a profile.
+    pub fn setup_of(&self, profile: &str, name: &str) -> Option<&InlineSetup> {
+        match self.profiles.get(profile).and_then(|p| p.tools.get(name)) {
+            Some(ToolEntry::Full(c)) => c.setup.as_ref(),
+            _ => None,
         }
-        "latest"
     }
 
-    /// Inline setup for a tool across active sections — the last declaring section wins.
-    pub fn setup_of_for_roles(&self, name: &str, roles: &[String]) -> Option<&InlineSetup> {
-        for section in self.effective_sections(roles).iter().rev() {
-            if let Some(ToolEntry::Full(c)) = self.tools.get(section).and_then(|s| s.get(name)) {
-                if let Some(setup) = &c.setup {
-                    return Some(setup);
-                }
-            }
-        }
-        None
-    }
-
-    /// Sections that declare this tool (for display).
-    pub fn sections_of_tool(&self, name: &str) -> Vec<String> {
-        self.tools
+    /// The profile that declares this tool (first match), if any.
+    pub fn profile_of_tool(&self, name: &str) -> Option<&str> {
+        self.profiles
             .iter()
-            .filter(|(_, s)| s.contains_key(name))
+            .find(|(_, p)| p.tools.contains_key(name))
+            .map(|(k, _)| k.as_str())
+    }
+
+    /// List of profiles that declare this tool (for display).
+    pub fn profiles_of_tool(&self, name: &str) -> Vec<String> {
+        self.profiles
+            .iter()
+            .filter(|(_, p)| p.tools.contains_key(name))
             .map(|(k, _)| k.clone())
             .collect()
     }
 
-    /// Append a hook path to a role's prepare/init list (dedup). No-op for unknown hooks.
-    pub fn add_hook(&mut self, role: &str, hook: &str, path: &str) {
+    /// Append a hook path to a profile's prepare/init list (dedup). No-op for unknown hooks.
+    pub fn add_hook(&mut self, profile: &str, hook: &str, path: &str) {
         if hook != "prepare" && hook != "init" {
             return;
         }
-        let rh = self.hooks.entry(role.to_string()).or_default();
+        let hooks = &mut self.ensure_profile(profile).hooks;
         let scripts = match hook {
-            "prepare" => &mut rh.prepare,
-            _ => &mut rh.init,
+            "prepare" => &mut hooks.prepare,
+            _ => &mut hooks.init,
         };
         if !scripts.iter().any(|s| s == path) {
             scripts.push(path.to_string());
+        }
+    }
+
+    /// Hook paths for a profile's prepare or init phase.
+    pub fn hooks_for(&self, profile: &str, phase: &str) -> Vec<String> {
+        let Some(hooks) = self.profiles.get(profile).map(|p| &p.hooks) else {
+            return Vec::new();
+        };
+        match phase {
+            "prepare" => hooks.prepare.clone(),
+            "init" => hooks.init.clone(),
+            _ => Vec::new(),
         }
     }
 }
