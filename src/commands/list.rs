@@ -131,6 +131,13 @@ pub fn run(all: bool) -> Result<()> {
         }
     }
 
+    // Columns: NAME STATUS MANAGER SETUP ORIGIN VERSION, plus PROFILE only with --all.
+    let ncols = if all { 7 } else { 6 };
+    let header = if all {
+        ["NAME", "STATUS", "MANAGER", "SETUP", "ORIGIN", "VERSION", "PROFILE"].to_vec()
+    } else {
+        ["NAME", "STATUS", "MANAGER", "SETUP", "ORIGIN", "VERSION"].to_vec()
+    };
     // Column widths (visible char count), driven by the largest content in each
     // column, capped so long content is truncated instead of pushing the next
     // column out of alignment.
@@ -144,9 +151,11 @@ pub fn run(all: bool) -> Result<()> {
         w[5] = w[5].max(r.version.chars().count());
         w[6] = w[6].max(r.profiles.chars().count());
     }
-    let header = ["NAME", "STATUS", "MANAGER", "SETUP", "ORIGIN", "VERSION", "PROFILE"];
     for i in 0..7 {
-        w[i] = w[i].min(COL_MAX[i]).max(header[i].chars().count());
+        w[i] = w[i].min(COL_MAX[i]);
+    }
+    for i in 0..ncols {
+        w[i] = w[i].max(header[i].chars().count());
     }
 
     printer::blank();
@@ -159,13 +168,13 @@ pub fn run(all: bool) -> Result<()> {
 
     // Header row — same 2-space indent as the data rows.
     let mut head = String::new();
-    for (i, h) in header.iter().enumerate() {
+    for i in 0..ncols {
         head.push_str("  ");
-        head.push_str(&printer::bold_text(&pad(h, w[i])));
+        head.push_str(&printer::bold_text(&pad(&header[i], w[i])));
     }
     println!("{}", head);
-    let rule = format!("  {}", "—".repeat(w.iter().sum::<usize>() + 14));
-    println!("{}", printer::dim_text(&rule));
+    let rule = format!("  {}", "—".repeat(w[..ncols].iter().sum::<usize>() + ncols * 2));
+    println!("{}", printer::orange_text(&rule));
 
     // Data rows.
     for r in &rows {
@@ -192,16 +201,16 @@ pub fn run(all: bool) -> Result<()> {
             if r.origin == "[local]" {
                 printer::success_text(&p)
             } else {
-                printer::dim_text(&p)
+                printer::orange_text(&p)
             }
         };
         let version = printer::dim_text(&pad(&r.version, w[5]));
-        let profiles = pad(&r.profiles, w[6]);
 
-        println!(
-            "  {}  {}  {}  {}  {}  {}  {}",
-            name, status, kind, setup, origin, version, profiles
-        );
+        let mut line = format!("  {}  {}  {}  {}  {}  {}", name, status, kind, setup, origin, version);
+        if all {
+            line.push_str(&format!("  {}", pad(&r.profiles, w[6])));
+        }
+        println!("{}", line);
     }
 
     printer::blank();
