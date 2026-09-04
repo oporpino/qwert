@@ -5,8 +5,8 @@ macos = [
   "if [ -f ~/.claude/settings.local.json ] && [ ! -L ~/.claude/settings.local.json ] && [ ! -f ~/.qwert/.claude/settings.local.json ]; then mv ~/.claude/settings.local.json ~/.qwert/.claude/settings.local.json; fi",
   "touch ~/.qwert/.claude/settings.local.json",
   "ln -sfn ~/.qwert/.claude/settings.local.json ~/.claude/settings.local.json",
-  "ln -sfn ~/.qwert/ia/skills ~/.claude/skills",
-  "ln -sfn ~/.qwert/ia/commands ~/.claude/commands",
+  "ln -sfn ~/.qwert/agents/skills ~/.claude/skills",
+  "ln -sfn ~/.qwert/agents/commands ~/.claude/commands",
 ]
 
 [undo]

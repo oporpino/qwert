@@ -4,8 +4,8 @@ macos = [
   "mkdir -p ~/.qwert/opencode",
   "if [ -f ~/.config/opencode/opencode.json ] && [ ! -L ~/.config/opencode/opencode.json ] && [ ! -f ~/.qwert/opencode/opencode.json ]; then mv ~/.config/opencode/opencode.json ~/.qwert/opencode/opencode.json; fi",
   "ln -sfn ~/.qwert/opencode/opencode.json ~/.config/opencode/opencode.json",
-  "ln -sfn ~/.qwert/ia/skills ~/.config/opencode/skills",
-  "ln -sfn ~/.qwert/ia/commands ~/.config/opencode/commands",
+  "ln -sfn ~/.qwert/agents/skills ~/.config/opencode/skills",
+  "ln -sfn ~/.qwert/agents/commands ~/.config/opencode/commands",
 ]
 
 [undo]

@@ -6,7 +6,7 @@ macos = [
   "touch ~/.qwert/kimi/config.toml",
   "ln -sfn ~/.qwert/kimi/config.toml ~/.kimi-code/config.toml",
   "mkdir -p ~/.config/agents",
-  "ln -sfn ~/.qwert/ia/skills ~/.config/agents/skills",
+  "ln -sfn ~/.qwert/agents/skills ~/.config/agents/skills",
 ]
 
 [undo]

@@ -5,7 +5,7 @@ macos = [
   "if [ -f ~/.openclaw/openclaw.json ] && [ ! -L ~/.openclaw/openclaw.json ] && [ ! -f ~/.qwert/openclaw/openclaw.json ]; then mv ~/.openclaw/openclaw.json ~/.qwert/openclaw/openclaw.json; fi",
   "touch ~/.qwert/openclaw/openclaw.json",
   "ln -sfn ~/.qwert/openclaw/openclaw.json ~/.openclaw/openclaw.json",
-  "ln -sfn ~/.qwert/ia/skills ~/.openclaw/skills",
+  "ln -sfn ~/.qwert/agents/skills ~/.openclaw/skills",
 ]
 
 [undo]

@@ -6,7 +6,7 @@ macos = [
   "touch ~/.qwert/codex/config.toml",
   "ln -sfn ~/.qwert/codex/config.toml ~/.codex/config.toml",
   "mkdir -p ~/.agents",
-  "ln -sfn ~/.qwert/ia/skills ~/.agents/skills",
+  "ln -sfn ~/.qwert/agents/skills ~/.agents/skills",
 ]
 
 [undo]
