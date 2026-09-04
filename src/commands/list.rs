@@ -15,14 +15,25 @@ struct Row {
     profiles: String,
 }
 
+/// Pad `s` to `w` visible columns, truncating when longer so the next column
+/// stays aligned. Truncation uses an ellipsis to hint at the cut.
 fn pad(s: &str, w: usize) -> String {
     let n = s.chars().count();
-    if n >= w {
-        s.to_string()
-    } else {
-        format!("{}{}", s, " ".repeat(w - n))
+    if n > w {
+        if w == 0 {
+            return String::new();
+        }
+        let mut s: Vec<char> = s.chars().collect();
+        s.truncate(w.saturating_sub(1));
+        let mut out: String = s.into_iter().collect();
+        out.push('…');
+        return out;
     }
+    format!("{}{}", s, " ".repeat(w - n))
 }
+
+/// Maximum visible width per column (NAME, STATUS, TYPE, SETUP, ORIGIN, VERSION, PROFILE).
+const COL_MAX: [usize; 7] = [16, 42, 8, 14, 8, 12, 20];
 
 pub fn run(all: bool) -> Result<()> {
     let manifest_path = qwert_yml::manifest_path();
@@ -115,7 +126,8 @@ pub fn run(all: bool) -> Result<()> {
         }
     }
 
-    // Column widths (visible char count).
+    // Column widths (visible char count), capped so long content is truncated
+    // instead of pushing the next column out of alignment.
     let mut w = [0usize; 7];
     for r in &rows {
         w[0] = w[0].max(r.name.chars().count());
@@ -125,6 +137,9 @@ pub fn run(all: bool) -> Result<()> {
         w[4] = w[4].max(r.origin.chars().count());
         w[5] = w[5].max(r.version.chars().count());
         w[6] = w[6].max(r.profiles.chars().count());
+    }
+    for i in 0..7 {
+        w[i] = w[i].min(COL_MAX[i]);
     }
     w[0] = w[0].max(4);
     w[1] = w[1].max(6);
@@ -172,10 +187,16 @@ pub fn run(all: bool) -> Result<()> {
             if r.ok { printer::success_text(&p) } else { printer::error_text(&p) }
         };
         let kind = {
-            let tag = printer::kind_tag(&r.kind);
-            let visible = r.kind.chars().count() + 2;
-            let px = w[2].saturating_sub(visible);
-            format!("{}{}", tag, " ".repeat(px))
+            // Truncate the kind label to the column width, keeping the ANSI tag
+            // around only the visible portion.
+            let kind_vis = r.kind.chars().count() + 2;
+            let (label, extra) = if kind_vis > w[2] {
+                // width cannot hold even one tag — fall back to plain text
+                (pad(&r.kind, w[2]), String::new())
+            } else {
+                (r.kind.clone(), " ".repeat(w[2] - kind_vis))
+            };
+            format!("{}{}", printer::kind_tag(&label), extra)
         };
         let setup = printer::dim_text(&pad(&r.setup, w[3]));
         let origin = {
@@ -197,4 +218,60 @@ pub fn run(all: bool) -> Result<()> {
 
     printer::blank();
     Ok(())
+}
+#[cfg(test)]
+mod tests {
+    use super::pad;
+
+    #[test]
+    fn pad_adds_spaces_when_shorter() {
+        // arrange
+        let s = "abc";
+        // act
+        let out = pad(s, 6);
+        // assert
+        assert_eq!(out, "abc   ");
+    }
+
+    #[test]
+    fn pad_leaves_exact_fit_unchanged() {
+        // arrange
+        let s = "abcdef";
+        // act
+        let out = pad(s, 6);
+        // assert
+        assert_eq!(out, "abcdef");
+    }
+
+    #[test]
+    fn pad_truncates_with_ellipsis_when_longer() {
+        // arrange
+        let s = "installed (OpenClaw 2026.7.1 (2d2ddc4))";
+        // act
+        let out = pad(s, 20);
+        // assert — widt-1 chars + ellipsis
+        assert_eq!(out.chars().count(), 20);
+        assert!(out.ends_with('…'));
+        assert!(out.starts_with("installed "));
+    }
+
+    #[test]
+    fn pad_zero_width_returns_empty() {
+        // arrange
+        let s = "abc";
+        // act
+        let out = pad(s, 0);
+        // assert
+        assert_eq!(out, "");
+    }
+
+    #[test]
+    fn pad_width_one_truncates_to_ellipsis() {
+        // arrange
+        let s = "abc";
+        // act
+        let out = pad(s, 1);
+        // assert
+        assert_eq!(out, "…");
+    }
 }
