@@ -28,9 +28,40 @@ pub fn upgrade() -> Result<()> {
     Ok(())
 }
 
+/// If this process runs under `sudo` (older installers wrapped `self install` in sudo),
+/// the HOME env points at the privileged user (e.g. /root). Return the invoking user's
+/// real home so user-scoped steps (recipes cache, shell rc, machine identity) land in
+/// the right place instead of the root user's.
+fn invoking_user_home() -> Option<String> {
+    let sudo_user = std::env::var("SUDO_USER").ok()?;
+    if sudo_user.is_empty() || sudo_user == "root" {
+        return None;
+    }
+    let current = std::env::var("HOME").unwrap_or_default();
+    let out = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("echo ~{}", sudo_user))
+        .output()
+        .ok()?;
+    let home = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    // `echo ~user` yields "~user" verbatim when there is no passwd entry.
+    if home.is_empty() || home == format!("~{}", sudo_user) || home == current {
+        None
+    } else {
+        Some(home)
+    }
+}
+
 pub fn install() -> Result<()> {
     printer::h1("Setting up qwert...");
     printer::blank();
+
+    // Re-home user-scoped steps if an outer sudo set HOME to the privileged user.
+    let orig_home = std::env::var("HOME").ok();
+    let rehome = invoking_user_home();
+    if let Some(h) = &rehome {
+        std::env::set_var("HOME", h);
+    }
 
     let installer = platform::installer();
     let bin_path = installer.binary_path();
@@ -85,6 +116,14 @@ pub fn install() -> Result<()> {
     // Machine identity — interactive profile selection when not configured yet
     if !crate::config::machine::machine_path().exists() {
         prompt_profile()?;
+    }
+
+    // Restore the original HOME so child steps after install() never inherit the override.
+    if rehome.is_some() {
+        match orig_home {
+            Some(original) => std::env::set_var("HOME", original),
+            None => std::env::remove_var("HOME"),
+        }
     }
 
     Ok(())

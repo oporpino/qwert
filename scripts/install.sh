@@ -90,7 +90,7 @@ main() {
     ok "Binary installed → ${QWERT_BIN}/qwert"
 
     printf "\n"
-    sudo "${QWERT_BIN}/qwert" self install
+    "${QWERT_BIN}/qwert" self install
 }
 
 main "$@"
