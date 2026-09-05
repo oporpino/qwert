@@ -40,3 +40,23 @@ fn for_kind_qwert_returns_none() {
     // assert
     assert!(result.is_none());
 }
+
+#[test]
+fn for_kind_package_returns_none() {
+    // arrange
+    let kind = RecipeKind::Package;
+    // act
+    let result = for_kind(&kind);
+    // assert
+    assert!(result.is_none());
+}
+
+#[test]
+fn for_kind_custom_returns_none() {
+    // arrange
+    let kind = RecipeKind::Custom;
+    // act
+    let result = for_kind(&kind);
+    // assert
+    assert!(result.is_none());
+}

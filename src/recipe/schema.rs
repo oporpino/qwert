@@ -26,21 +26,43 @@ pub struct RecipeMeta {
     pub kind: RecipeKind,
     #[serde(default)]
     pub depends: Vec<String>,
+    /// Package name per package manager (brew/apt/pacman), for agnostic recipes.
+    /// When missing, the platform PM installs `name` (legacy `pkg` only applies to brew).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub packages: Option<std::collections::BTreeMap<String, String>>,
     pub pkg: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum RecipeKind {
+    /// Package-manager agnostic — the platform's PM installs the package (recipes don't
+    /// ship with a fixed `type = "brew"|"apt"|"pacman"` anymore; use `packages` for names).
+    Package,
+    /// Custom install/upgrade/uninstall commands in the recipe.
+    Custom,
+    /// Legacy brew recipe — treated as a package on the current platform.
     Brew,
+    /// Legacy apt recipe — treated as a package on the current platform.
     Apt,
+    /// Legacy pacman recipe — treated as a package on the current platform.
     Pacman,
+    /// Legacy qwert recipe — custom commands.
     Qwert,
+}
+
+impl RecipeKind {
+    /// Does this recipe resolve through the platform's package manager?
+    pub fn is_package(&self) -> bool {
+        matches!(self, RecipeKind::Package | RecipeKind::Brew | RecipeKind::Apt | RecipeKind::Pacman)
+    }
 }
 
 impl std::fmt::Display for RecipeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            RecipeKind::Package => write!(f, "package"),
+            RecipeKind::Custom => write!(f, "custom"),
             RecipeKind::Brew => write!(f, "brew"),
             RecipeKind::Apt => write!(f, "apt"),
             RecipeKind::Pacman => write!(f, "pacman"),
@@ -209,6 +231,7 @@ mod tests {
                 description: "test recipe".into(),
                 kind: RecipeKind::Brew,
                 depends: vec![],
+                packages: None,
                 pkg: None,
             },
             check: None,

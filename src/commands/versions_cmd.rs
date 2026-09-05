@@ -1,6 +1,7 @@
 use anyhow::Result;
 
-use crate::recipe::{index, schema::RecipeKind};
+use crate::adapters::yuiop::Pm;
+use crate::recipe::index;
 
 /// Print available versions for a tool (used by shell completions).
 /// Queries the platform package manager. Outputs one version per line.
@@ -8,21 +9,16 @@ pub fn run(name: &str) -> Result<()> {
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
 
-    let kind = if let Some(recipe) = index::find(name, &recipes_dir) {
-        recipe.meta.kind
-    } else {
-        // No recipe — infer from platform
-        match crate::platform::detect() {
-            crate::platform::Platform::MacOS => RecipeKind::Brew,
-            crate::platform::Platform::Debian => RecipeKind::Apt,
-            crate::platform::Platform::Arch => RecipeKind::Pacman,
-            crate::platform::Platform::Unknown => return Ok(()),
-        }
+    // Package recipes (and tools without a recipe) query the platform PM.
+    // Custom recipes have no package-manager versions to offer.
+    let pm = match index::find(name, &recipes_dir) {
+        Some(recipe) if !crate::adapters::yuiop::is_package_kind(&recipe.meta.kind) => None,
+        _ => Pm::current(),
     };
 
-    let versions = match kind {
-        RecipeKind::Brew => fetch_brew_versions(name),
-        RecipeKind::Apt => fetch_apt_versions(name),
+    let versions = match pm {
+        Some(Pm::Brew) => fetch_brew_versions(name),
+        Some(Pm::Apt) => fetch_apt_versions(name),
         _ => vec![],
     };
 

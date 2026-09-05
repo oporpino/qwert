@@ -15,6 +15,15 @@ pub enum RunResult {
 
 /// Check if a recipe is already installed
 pub fn is_installed(recipe: &Recipe) -> bool {
+    // Package recipes: ask the platform's PM — more accurate than `which`, and it
+    // works when the platform PM differs from the recipe's legacy `type`.
+    if crate::adapters::yuiop::is_package_kind(&recipe.meta.kind) {
+        return match crate::adapters::yuiop::registered(&recipe.meta) {
+            Some(installed) => installed,
+            None => platform::which(&recipe.meta.name),
+        };
+    }
+
     let Some(check) = &recipe.check else { return false };
     if let Some(cmd) = &check.cmd {
         return platform::run_cmd_capture(cmd).is_ok();
@@ -31,11 +40,6 @@ pub fn installed_version(recipe: &Recipe) -> Option<String> {
     let command = check.command.as_deref()?;
     let flag = check.version_flag.as_deref()?;
     platform::version_of(command, flag)
-}
-
-/// Package name to pass to the adapter
-fn pkg_name(recipe: &Recipe) -> &str {
-    recipe.meta.pkg.as_deref().unwrap_or(&recipe.meta.name)
 }
 
 fn run_install(cmd: &str) -> Result<(), String> {
@@ -79,22 +83,23 @@ pub fn install(recipe: &Recipe, recipes_dir: &Path) -> RunResult {
         }
     }
 
-    // Try adapter first — ensure() installs the package manager itself if missing
-    if let Some(adapter) = crate::adapters::for_kind(&recipe.meta.kind) {
-        if let Err(e) = adapter.ensure() {
-            return RunResult::Failed(e.to_string());
-        }
-        let cmd = adapter.install_cmd(pkg_name(recipe));
-        return match run_install(&cmd) {
+    // Package recipes resolve through the platform's PM (yuiop). The recipe never
+    // forces a specific PM — on macOS it installs via brew, on Debian via apt, on
+    // Arch via pacman.
+    if crate::adapters::yuiop::is_package_kind(&recipe.meta.kind) {
+        return match crate::adapters::yuiop::install(&recipe.meta) {
             Ok(_) => RunResult::Installed,
             Err(e) => RunResult::Failed(e),
         };
     }
 
-    // Fall back to explicit commands
+    // Custom recipes run explicit commands — no silent fallback to the platform PM.
     let steps = recipe.install_steps_for(&platform);
     if steps.is_empty() {
-        return RunResult::NotSupported;
+        return RunResult::Failed(format!(
+            "recipe '{}' has no install steps for {} — add a 'macos'/'debian'/'arch' section",
+            recipe.meta.name, platform
+        ));
     }
 
     for step in steps {
@@ -109,18 +114,15 @@ pub fn install(recipe: &Recipe, recipes_dir: &Path) -> RunResult {
 pub fn uninstall(recipe: &Recipe) -> RunResult {
     let platform = platform::detect();
 
-    // Try adapter first
-    if let Some(adapter) = crate::adapters::for_kind(&recipe.meta.kind) {
-        if adapter.available() {
-            let cmd = adapter.uninstall_cmd(pkg_name(recipe));
-            return match platform::run_cmd_capture(&cmd) {
-                Ok(_) => RunResult::Installed,
-                Err(e) => RunResult::Failed(e),
-            };
-        }
+    // Package recipes uninstall through the platform PM.
+    if crate::adapters::yuiop::is_package_kind(&recipe.meta.kind) {
+        return match crate::adapters::yuiop::uninstall(&recipe.meta) {
+            Ok(_) => RunResult::Installed,
+            Err(e) => RunResult::Failed(e),
+        };
     }
 
-    // Fall back to explicit commands
+    // Custom recipes run explicit commands
     let steps = recipe.uninstall_steps_for(&platform);
     if steps.is_empty() {
         return RunResult::NotSupported;
@@ -162,16 +164,15 @@ pub fn uninstall_with_output(recipe: &Recipe) -> bool {
 pub fn upgrade(recipe: &Recipe) -> RunResult {
     let platform = platform::detect();
 
-    if let Some(adapter) = crate::adapters::for_kind(&recipe.meta.kind) {
-        if adapter.available() {
-            let cmd = adapter.upgrade_cmd(pkg_name(recipe));
-            return match run_upgrade(&cmd) {
-                Ok(_) => RunResult::Installed,
-                Err(e) => RunResult::Failed(e),
-            };
-        }
+    // Package recipes upgrade through the platform PM.
+    if crate::adapters::yuiop::is_package_kind(&recipe.meta.kind) {
+        return match crate::adapters::yuiop::upgrade(&recipe.meta) {
+            Ok(_) => RunResult::Installed,
+            Err(e) => RunResult::Failed(e),
+        };
     }
 
+    // Custom recipes run explicit commands
     let steps = recipe.upgrade_steps_for(&platform);
     if steps.is_empty() {
         return RunResult::NotSupported;
@@ -203,7 +204,7 @@ pub fn install_with_output(recipe: &Recipe, recipes_dir: &Path) -> bool {
             true
         }
         RunResult::Installed => {
-            let tag = printer::kind_tag(&recipe.meta.kind.to_string());
+            let tag = printer::kind_tag(&crate::adapters::yuiop::resolve_label(&recipe.meta));
             let msg = format!("{}  {}", version_msg("installed", installed_version(recipe)), tag);
             printer::ok(name, &msg);
             true
@@ -222,7 +223,7 @@ pub fn install_with_output(recipe: &Recipe, recipes_dir: &Path) -> bool {
 /// Check and print status of a recipe
 pub fn status_with_output(recipe: &Recipe) {
     let name = &recipe.meta.name;
-    let tag = printer::kind_tag(&recipe.meta.kind.to_string());
+    let tag = printer::kind_tag(&crate::adapters::yuiop::resolve_label(&recipe.meta));
     let origin = printer::origin_tag(recipe.local);
 
     if is_installed(recipe) {
@@ -536,8 +537,9 @@ mod tests {
                 name: "test".into(),
                 version: "1.0.0".into(),
                 description: "test".into(),
-                kind: RecipeKind::Brew,
+                kind: RecipeKind::Custom,
                 depends: vec![],
+                packages: None,
                 pkg: None,
             },
             check: Some(RecipeCheck { command: Some("test-nonexistent-binary".into()), version_flag: None, cmd: None }),

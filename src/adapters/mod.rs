@@ -1,6 +1,7 @@
 pub mod apt;
 pub mod brew;
 pub mod pacman;
+pub mod yuiop;
 
 pub use apt::AptAdapter;
 pub use brew::BrewAdapter;
@@ -23,12 +24,13 @@ pub trait PackageAdapter {
     }
 }
 
+#[allow(dead_code)] // kept as a convenience for callers that target a specific PM by recipe kind
 pub fn for_kind(kind: &RecipeKind) -> Option<Box<dyn PackageAdapter>> {
     match kind {
         RecipeKind::Brew => Some(Box::new(BrewAdapter)),
         RecipeKind::Apt => Some(Box::new(AptAdapter)),
         RecipeKind::Pacman => Some(Box::new(PacmanAdapter)),
-        RecipeKind::Qwert => None,
+        RecipeKind::Package | RecipeKind::Custom | RecipeKind::Qwert => None,
     }
 }
 
@@ -38,13 +40,9 @@ pub fn is_package_manager(name: &str) -> bool {
 }
 
 /// Returns the default adapter for the current platform (brew on macOS, apt on Debian).
+/// Single source is `yuiop::Pm::current()` — this delegates to it.
 pub fn default_adapter() -> Option<Box<dyn PackageAdapter>> {
-    match crate::platform::detect() {
-        crate::platform::Platform::MacOS => Some(Box::new(BrewAdapter)),
-        crate::platform::Platform::Debian => Some(Box::new(AptAdapter)),
-        crate::platform::Platform::Arch => Some(Box::new(PacmanAdapter)),
-        crate::platform::Platform::Unknown => None,
-    }
+    yuiop::Pm::current().map(|pm| pm.adapter())
 }
 
 #[cfg(test)]
