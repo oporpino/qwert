@@ -59,9 +59,22 @@ pub fn clone_dir(name: &str) -> PathBuf {
 }
 
 /// Clone a plugin (or the default catalog) into `dest`. No-op if already present.
+/// A pre-existing non-git directory (e.g. the old tarball cache) is cleared first —
+/// only within qwert's own data dir, so arbitrary paths are never touched.
 pub fn clone(url: &str, dest: &Path) -> Result<()> {
     if dest.join(".git").is_dir() {
         return Ok(());
+    }
+    if dest.is_dir() {
+        let data = crate::platform::data_dir();
+        if !dest.starts_with(&data) {
+            anyhow::bail!(
+                "refusing to clear non-qwert directory: {} — remove it manually",
+                dest.display()
+            );
+        }
+        std::fs::remove_dir_all(dest)
+            .with_context(|| format!("failed to clear stale cache {}", dest.display()))?;
     }
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
