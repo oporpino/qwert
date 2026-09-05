@@ -14,6 +14,15 @@ impl PackageAdapter for BrewAdapter {
         if self.available() {
             return Ok(());
         }
+        // Homebrew is only auto-installed on macOS. On Linux it would need to go to
+        // /home/linuxbrew (unsupported, buggy) — never do that silently. If this
+        // platform shouldn't use brew, the recipe resolves to the platform PM anyway.
+        if !cfg!(target_os = "macos") {
+            anyhow::bail!(
+                "brew not found and Homebrew cannot be installed on this platform — \
+                 use a platform package manager (run `qwert platform arch` on Arch)"
+            );
+        }
         install_homebrew()?;
         load_brew_env()?;
         if !self.available() {
