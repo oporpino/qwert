@@ -1,9 +1,0 @@
-[meta]
-name = "tmux"
-version = "1.0.0"
-description = "Terminal multiplexer"
-type = "brew"
-
-[check]
-command = "tmux"
-version_flag = "-V"

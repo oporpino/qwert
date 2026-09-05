@@ -3,11 +3,12 @@ mod cli;
 mod commands;
 mod config;
 mod platform;
+mod plugins;
 mod recipe;
 mod ui;
 
 use clap::Parser;
-use cli::{Cli, Command, ConfigAction, RecipesAction, SelfAction, UseTarget};
+use cli::{Cli, Command, ConfigAction, PluginAction, RecipesAction, SelfAction, UseTarget};
 
 /// Extract `--profile <name>` (or `--profile=<name>`) from `use <tool>` args.
 fn extract_profile(args: &[String]) -> Option<String> {
@@ -73,6 +74,8 @@ fn main() {
 
         Command::Profile { name } => commands::profile_cmd::run(name.as_deref()),
 
+        Command::Platform { platform } => commands::platform_cmd::run(platform.as_deref()),
+
         Command::Completions { shell } => commands::completions::run(&shell),
 
         Command::Hook { phase } => commands::hook::run(&phase),
@@ -93,6 +96,13 @@ fn main() {
 
         Command::Recipes { action } => match action {
             RecipesAction::Update => commands::recipes_cmd::update(),
+        },
+
+        Command::Plugin { action } => match action {
+            PluginAction::Add { url } => commands::plugin_cmd::add(&url),
+            PluginAction::Remove { name } => commands::plugin_cmd::remove(&name),
+            PluginAction::List => commands::plugin_cmd::list(),
+            PluginAction::Update => commands::plugin_cmd::update(),
         },
 
         Command::Help => {

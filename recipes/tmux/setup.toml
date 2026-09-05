@@ -1,4 +1,0 @@
-from = "~/.qwert/config/tmux/tmux.conf"
-to = "~/.tmux.conf"
-dest = "file"
-symlink = true

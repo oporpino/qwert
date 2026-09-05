@@ -9,6 +9,7 @@ pub fn run() {
     printer::command("drop <tool>",   "remove tool from this machine's declaration");
     printer::command("apply",         "install/uninstall to match config.yml");
     printer::command("profile [name]", "show or set this machine's profile");
+    printer::command("platform [platform]", "show or set this machine's platform (macos|debian|arch)");
     printer::blank();
 
     printer::h2("Information");
@@ -22,6 +23,14 @@ pub fn run() {
     printer::command("reinstall <tool>", "reinstall a tool");
     printer::command("update",           "update qwert and refresh recipes");
     printer::command("doctor",           "health check");
+    printer::blank();
+
+    printer::h2("Recipes");
+    printer::command("recipes update",          "sync the default recipe catalog");
+    printer::command("plugin add <url>",        "add a recipes repo (git clone)");
+    printer::command("plugin remove <name>",    "remove a recipe plugin");
+    printer::command("plugin list",             "list declared plugins");
+    printer::command("plugin update",           "update all plugins");
     printer::blank();
 
     printer::h2("Config");

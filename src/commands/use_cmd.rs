@@ -35,6 +35,7 @@ pub fn use_tool(name: &str, version: Option<&str>, profile: Option<&str>, no_ins
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
     crate::commands::recipes_cmd::update_silent();
+    crate::plugins::ensure_clones().ok();
 
     if config.config_source_for(&profile, name).is_none() {
         let source_from_recipe = index::find(name, &recipes_dir)

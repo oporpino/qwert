@@ -25,6 +25,7 @@ pub fn run(name: &str) -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
 
     crate::commands::recipes_cmd::update_silent();
+    crate::plugins::ensure_clones().ok();
 
     let source = config
         .config_source_for(&profile, name)

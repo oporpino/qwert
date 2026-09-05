@@ -21,9 +21,18 @@ qwert status             # show installed tools
 qwert search <term>      # search recipes + brew
 qwert upgrade <tool>     # upgrade a tool
 qwert upgrade --all      # upgrade all tools
+qwert recipes update     # sync the default recipe catalog
+qwert plugin add <url>   # add your own recipes repo
 qwert self upgrade       # upgrade qwert itself
 qwert doctor             # check environment health
 ```
+
+## Recipes & plugins
+
+The default catalog lives in the [qwert-recipes](https://github.com/br4zz4/qwert-recipes)
+repo and is synced with `qwert recipes update`. Add your own via `qwert plugin add <url>`
+(any git repo with a `recipes/` directory) — see the [qwert-recipes README](https://github.com/br4zz4/qwert-recipes)
+for how to build one.
 
 ## Config
 
@@ -33,6 +42,10 @@ qwert doctor             # check environment health
 tools:
   - tmux
   - lvim
+
+plugins:
+  - name: my-recipes
+    url: https://github.com/user/my-recipes
 
 hooks:
   prepare:
@@ -46,7 +59,9 @@ Save `~/.qwert/` in a private repository. On a new machine, clone it and run `qw
 ## How it works
 
 - `~/.qwert/` — your dotfiles. Free-form, version-controlled in your personal repo.
-- `~/.local/share/qwert/` — qwert runtime data (recipes, state, backups). Never edited manually.
+- `~/.local/share/qwert/` — qwert runtime data (recipes, plugins, state, backups). Never edited manually.
 - `/opt/qwert/bin/qwert` — the binary.
 
-Recipes live in `~/.local/share/qwert/recipes/`. Each recipe can define install steps, setup (symlinks, copies, commands), and undo behaviour.
+The default recipes are git-cloned to `~/.local/share/qwert/recipes/` from the
+[qwert-recipes](https://github.com/br4zz4/qwert-recipes) repo. Each recipe can define install
+steps, setup (symlinks, copies, commands), and undo behaviour.

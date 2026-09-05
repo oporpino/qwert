@@ -1,35 +1,25 @@
 ## recipes
 
-- recipes live in `recipes/<name>/` with `install.toml` and/or `setup.toml`
+- recipes live in `recipes/<name>/` inside recipe repos (the default `br4zz4/qwert-recipes` or user plugins) with `install.toml` and/or `setup.toml`
 - schema fields use `from` (not `src`), `to`, `symlink`, `macos`, `debian`, `undo`
 - `load_toml_opt` silently returns `None` on parse failure — a wrong field name means setup is silently ignored
 
-## VERSION
+## Catalog delivery
 
-`recipes/VERSION` is the single source of truth for the recipes cache version.
-`update_silent()` in `src/commands/recipes_cmd.rs` fetches only this file first;
-if it matches the local cache, no tarball download happens.
+The default catalog and all plugins are delivered via **git clone** (no tarballs, no VERSION file).
 
-**A stale VERSION = users never pick up recipe changes.**
+- default → cloned to `~/.local/share/qwert/recipes/` from `https://github.com/br4zz4/qwert-recipes`
+- plugins → cloned to `~/.local/share/qwert/plugins/<name>/`, declared in `~/.qwert/config.yml`
 
-### In CI (normal flow)
+`update_silent()` in `src/commands/recipes_cmd.rs` pulls the default catalog
+silently (ignoring errors for offline use) and `ensure_clones()` clones any declared
+plugins — both run before recipe lookup in `use`/`install`/`setup`/`apply`.
 
-`.github/workflows/bump-recipes-version.yml` auto-bumps `recipes/VERSION` on every
-push to `main` that touches `recipes/**` (excluding `recipes/VERSION` itself).
-No manual action needed.
-
-### Locally (bypassing CI)
-
-If you change any recipe file outside of a CI push (local testing, direct edits), bump the version manually:
-
-```bash
-date -u +%Y%m%d%H%M%S > recipes/VERSION
-```
-
-Commit it together with the recipe change — never in a separate commit.
+Recipe lookup precedence: `~/.qwert/recipes` (local override) → plugin repos (declaration
+order) → default catalog.
 
 ### Rules
 
-- never modify a recipe file without also updating `recipes/VERSION`
-- never update `recipes/VERSION` without a corresponding recipe change
-- when adding or renaming fields in `RecipeSetup` or `SetupFile`, bump VERSION immediately — silent parse failures are hard to debug
+- never put recipes in this repo — they live in `br4zz4/qwert-recipes` or user plugins
+- when editing the catalog, push directly to `br4zz4/qwert-recipes` (git pull ships it)
+- when adding or renaming fields in `RecipeSetup` or `SetupFile`, remember silent parse failures are hard to debug

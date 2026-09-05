@@ -132,6 +132,12 @@ pub enum Command {
         name: Option<String>,
     },
 
+    /// Show or set this machine's platform explicitly (macos, debian or arch)
+    Platform {
+        /// Platform: macos, debian or arch; no args shows the current platform
+        platform: Option<String>,
+    },
+
     /// Health check — verify installation and symlinks
     Doctor,
 
@@ -152,6 +158,12 @@ pub enum Command {
     Recipes {
         #[command(subcommand)]
         action: RecipesAction,
+    },
+
+    /// Manage recipe plugins (git repos with recipes)
+    Plugin {
+        #[command(subcommand)]
+        action: PluginAction,
     },
 }
 
@@ -193,5 +205,23 @@ pub enum SelfAction {
 #[derive(Subcommand)]
 pub enum RecipesAction {
     /// Fetch the latest recipe index
+    Update,
+}
+
+#[derive(Subcommand)]
+pub enum PluginAction {
+    /// Clone a git recipes repo and add it to qwert.yml
+    Add {
+        /// Git URL (https, ssh, or local path)
+        url: String,
+    },
+    /// Remove a plugin declaration and delete its clone
+    Remove {
+        /// Plugin name
+        name: String,
+    },
+    /// List declared plugins
+    List,
+    /// Update all plugins (git pull)
     Update,
 }

@@ -1,6 +1,6 @@
 ---
 title: Remover recipes do qwert e criar sistema de plugins
-status: proposed
+status: in_progress
 created: 2026-09-04
 updated: 2026-09-04
 owner: "@oporpino"

@@ -88,6 +88,20 @@ fn hooks_empty(h: &Hooks) -> bool {
     h.prepare.is_empty() && h.init.is_empty()
 }
 
+/// A user-declared recipes source (plugin): a git repo cloned into the runtime cache.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PluginSource {
+    /// Local name — derived from the URL at `qwert plugin add` time.
+    pub name: String,
+    /// Git URL of the recipes repo.
+    pub url: String,
+}
+
+/// Plugin list empty? Used to skip serializing the field when unused.
+pub fn plugins_empty(plugins: &[PluginSource]) -> bool {
+    plugins.is_empty()
+}
+
 /// A single profile: which catalog tools it uses, its config sources and hooks.
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct Profile {
@@ -111,6 +125,8 @@ pub struct QwertConfig {
     pub tools: IndexMap<String, ToolEntry>,
     /// profile name → profile (tools, configs, hooks).
     pub profiles: IndexMap<String, Profile>,
+    /// Declared recipe plugins (git repos), in add order.
+    pub plugins: Vec<PluginSource>,
 }
 
 /// Raw shape used for (de)serialization. Handles both the new catalog+profiles
@@ -125,12 +141,15 @@ struct QwertConfigRaw {
 
     #[serde(default, skip_serializing_if = "hooks_empty")]
     hooks: Hooks,
+
+    #[serde(default, skip_serializing_if = "plugins_empty")]
+    plugins: Vec<PluginSource>,
 }
 
 impl From<QwertConfigRaw> for QwertConfig {
     fn from(raw: QwertConfigRaw) -> Self {
         if !raw.profiles.is_empty() {
-            QwertConfig { tools: raw.tools, profiles: raw.profiles }
+            QwertConfig { tools: raw.tools, profiles: raw.profiles, plugins: raw.plugins }
         } else {
             // Legacy flat config: catalog = all tools, active through a default profile.
             let names: Vec<String> = raw.tools.keys().cloned().collect();
@@ -139,7 +158,7 @@ impl From<QwertConfigRaw> for QwertConfig {
                 PROFILE_DEFAULT.to_string(),
                 Profile { tools: names, configs: IndexMap::new(), hooks: raw.hooks },
             );
-            QwertConfig { tools: raw.tools, profiles }
+            QwertConfig { tools: raw.tools, profiles, plugins: raw.plugins }
         }
     }
 }
@@ -150,6 +169,7 @@ impl From<QwertConfig> for QwertConfigRaw {
             tools: cfg.tools,
             profiles: cfg.profiles,
             hooks: Hooks::default(),
+            plugins: cfg.plugins,
         }
     }
 }
@@ -322,6 +342,27 @@ impl QwertConfig {
             "init" => p.hooks.init.clone(),
             _ => Vec::new(),
         }
+    }
+
+    /// Declared plugins in add order.
+    pub fn plugins(&self) -> &[PluginSource] {
+        &self.plugins
+    }
+
+    /// Add (or replace) a plugin by name. Returns true when it was already declared.
+    pub fn add_plugin(&mut self, name: &str, url: &str) {
+        if let Some(existing) = self.plugins.iter_mut().find(|p| p.name == name) {
+            existing.url = url.to_string();
+        } else {
+            self.plugins.push(PluginSource { name: name.to_string(), url: url.to_string() });
+        }
+    }
+
+    /// Remove a plugin by name. Returns true when it was declared and removed.
+    pub fn remove_plugin(&mut self, name: &str) -> bool {
+        let before = self.plugins.len();
+        self.plugins.retain(|p| p.name != name);
+        self.plugins.len() != before
     }
 }
 

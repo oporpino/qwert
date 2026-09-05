@@ -13,8 +13,18 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
     let machine_identity = machine::MachineIdentity::load()?;
     let profile = machine_identity.active_profile().to_string();
 
+    // Ensure the default catalog and any declared plugins are available before
+    // resolving recipes — replicates the environment on a fresh machine.
+    crate::commands::recipes_cmd::update_silent();
+    crate::plugins::ensure_clones().ok();
+
     let recipes_dir = index::cache_dir()
         .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
+
+    // Ensure a fresh machine (or one whose recipes cache landed elsewhere) has the
+    // recipe index before resolving anything. Best-effort: offline usage is unaffected.
+    crate::commands::recipes_cmd::update_silent();
+    crate::plugins::ensure_clones().ok();
 
     printer::h1("Applying machine setup...");
     if !config.profiles.contains_key(&profile) {

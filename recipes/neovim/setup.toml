@@ -1,4 +1,0 @@
-from = "~/.qwert/config/neovim"
-to = "~/.config/nvim"
-dest = "dir"
-symlink = true

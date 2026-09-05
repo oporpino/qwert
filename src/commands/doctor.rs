@@ -16,7 +16,15 @@ pub fn run() -> Result<()> {
 
     // Platform
     let platform = platform::detect();
-    printer::ok("platform", &platform.to_string());
+    let machine_identity = crate::config::machine::MachineIdentity::load()?;
+    if matches!(platform, platform::Platform::Unknown) {
+        printer::failed("platform", "could not detect the package manager");
+        printer::info("Set it explicitly: `qwert platform <macos|debian|arch>`.");
+    } else if let Some(p) = machine_identity.platform.as_deref() {
+        printer::ok("platform", &format!("{} (override: {})", platform, p));
+    } else {
+        printer::ok("platform", &platform.to_string());
+    }
 
     // Config dir
     if config_dir.exists() {
@@ -39,11 +47,20 @@ pub fn run() -> Result<()> {
             .unwrap_or(0);
         printer::ok("recipes", &format!("{} cached in {}", count, recipes_dir.display()));
     } else {
-        printer::failed("recipes", "cache not found — run `qwert update`");
+        printer::failed("recipes", "cache not found — run `qwert recipes update`");
+    }
+
+    // Plugins
+    let config = qwert_yml::QwertConfig::load(&manifest_path)?;
+    for plugin in crate::plugins::list()? {
+        if plugin.cloned {
+            printer::ok("plugin", &format!("{} ({})", plugin.name, plugin.url));
+        } else {
+            printer::failed("plugin", &format!("{} not cloned — run `qwert recipes update`", plugin.name));
+        }
     }
 
     // Machine identity
-    let machine_identity = crate::config::machine::MachineIdentity::load()?;
     let profile = machine_identity.active_profile().to_string();
     if machine_identity.profile.is_none() {
         printer::info(&format!("machine profile: none (using '{}') — run `qwert profile <name>`", profile));
@@ -52,7 +69,6 @@ pub fn run() -> Result<()> {
     }
 
     // Tools status
-    let config = qwert_yml::QwertConfig::load(&manifest_path)?;
     let names = config.tool_names_for_profile(&profile);
     if !names.is_empty() {
         printer::blank();

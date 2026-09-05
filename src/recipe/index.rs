@@ -2,7 +2,6 @@ use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
 
 use super::schema::{InstallFile, Recipe, RecipeCheck, RecipeMeta, RecipeKind, RecipeSetup, SetupFile};
-use crate::platform;
 
 fn load_toml_opt<T: DeserializeOwned>(path: &Path) -> Option<T> {
     let content = std::fs::read_to_string(path).ok()?;
@@ -10,11 +9,8 @@ fn load_toml_opt<T: DeserializeOwned>(path: &Path) -> Option<T> {
 }
 
 fn default_kind() -> RecipeKind {
-    match platform::detect() {
-        platform::Platform::MacOS => RecipeKind::Brew,
-        platform::Platform::Arch => RecipeKind::Pacman,
-        platform::Platform::Debian | platform::Platform::Unknown => RecipeKind::Apt,
-    }
+    // Recipes are package-manager agnostic: the platform's PM installs them.
+    RecipeKind::Package
 }
 
 fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<SetupFile>, local: bool) -> Recipe {
@@ -28,6 +24,7 @@ fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<Setup
         description: String::new(),
         kind: default_kind(),
         depends: vec![],
+        packages: None,
         pkg: None,
     });
 
@@ -69,7 +66,8 @@ fn find_in(dir: &Path, name: &str, local: bool) -> Option<Recipe> {
 }
 
 /// Find a recipe by name — checks local user recipes (~/.qwert/recipes) first,
-/// then the remote cache. Local recipes take precedence on name collision.
+/// then plugin recipes (in declaration order), then the default cache. Local
+/// recipes take precedence on name collision.
 pub fn find(name: &str, recipes_dir: &Path) -> Option<Recipe> {
     let local_dir = crate::config::qwert_yml::config_dir().join("recipes");
     if local_dir.is_dir() {
@@ -77,29 +75,49 @@ pub fn find(name: &str, recipes_dir: &Path) -> Option<Recipe> {
             return Some(recipe);
         }
     }
+    for plugin_dir in crate::plugins::recipe_dirs() {
+        if let Some(recipe) = find_in(&plugin_dir, name, false) {
+            return Some(recipe);
+        }
+    }
     find_in(recipes_dir, name, false)
 }
 
-/// Load all recipes from subdirectories (remote cache only — used by search).
+/// Load all recipes from plugins (declaration order) plus the default cache.
+/// On name collision the higher-precedence recipe wins (plugins beat default,
+/// earlier plugins beat later ones). Used by search.
 pub fn load_all(recipes_dir: &Path) -> Vec<Recipe> {
+    let mut seen = std::collections::HashSet::new();
     let mut recipes = Vec::new();
 
-    let Ok(entries) = std::fs::read_dir(recipes_dir) else {
-        return recipes;
-    };
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if let Some(recipe) = find_in(recipes_dir, name, false) {
-                recipes.push(recipe);
-            }
-        }
+    for dir in crate::plugins::recipe_dirs() {
+        collect_from(&dir, &mut seen, &mut recipes);
     }
+    collect_from(recipes_dir, &mut seen, &mut recipes);
 
     recipes.sort_by(|a, b| a.meta.name.cmp(&b.meta.name));
     recipes
+}
+
+/// Add recipes from `dir` unless a higher-precedence recipe already claimed the name.
+fn collect_from(dir: &Path, seen: &mut std::collections::HashSet<String>, recipes: &mut Vec<Recipe>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if seen.contains(name) {
+            continue;
+        }
+        if let Some(recipe) = find_in(dir, name, false) {
+            seen.insert(name.to_string());
+            recipes.push(recipe);
+        }
+    }
 }
 
 /// Path to the recipes cache directory (~/.local/share/qwert/recipes/)

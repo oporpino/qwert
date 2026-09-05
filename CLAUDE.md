@@ -37,13 +37,15 @@ src/
 │   ├── hook.rs             ← outputs shell hooks (init/end)
 │   ├── completions.rs      ← outputs shell completion script
 │   ├── self_cmd.rs         ← self upgrade/reinstall
-│   ├── recipes_cmd.rs      ← recipes update
+│   ├── recipes_cmd.rs      ← recipes update (git clone/pull default catalog)
+│   ├── plugin_cmd.rs       ← plugin add/remove/list/update
 │   ├── doctor.rs
 │   ├── config.rs
 │   └── help.rs
+├── plugins.rs              ← plugin clones (~/.local/share/qwert/plugins/), git ops
 ├── recipe/
 │   ├── schema.rs           ← Recipe, RecipeMeta, RecipeKind, RecipeSetup, Commands
-│   ├── index.rs            ← find/load_all from ~/.local/share/qwert/recipes/<name>/
+│   ├── index.rs            ← find/load_all — local > plugins > default cache
 │   └── runner.rs           ← install/upgrade/uninstall/setup/undo_setup
 ├── adapters/               ← package manager adapters
 │   ├── mod.rs              ← PackageAdapter trait + for_kind()
@@ -82,6 +84,10 @@ qwert reinstall <tool>
 qwert self upgrade
 qwert self reinstall
 qwert recipes update
+qwert plugin add <url>       # declare + git clone a recipes repo
+qwert plugin remove <name>
+qwert plugin list
+qwert plugin update
 qwert hook prepare / hook init   # output shell hooks (eval'd in .zshrc)
 qwert completions <shell>    # output completion script
 qwert doctor
@@ -91,7 +97,12 @@ qwert help
 
 ## Recipe System
 
-Recipes live in `recipes/<name>/` (cached to `~/.local/share/qwert/recipes/` at install time). Each recipe is a directory with up to two files — both optional:
+Recipes come from git repos, not from this repo. The default catalog is cloned from
+`https://github.com/br4zz4/qwert-recipes` into `~/.local/share/qwert/recipes/`. Users can
+add more via `qwert plugin add <url>` — plugins are cloned into `~/.local/share/qwert/plugins/<name>/`
+and declared in `~/.qwert/config.yml` (versioned, so `apply` on a new machine restores them).
+
+Each recipe is a directory with up to two files — both optional:
 
 ```
 recipes/
@@ -99,6 +110,9 @@ recipes/
     ├── install.toml   ← install/upgrade/uninstall + meta
     └── setup.toml     ← symlinks, copies, or commands for config setup
 ```
+
+Recipe lookup precedence: `~/.qwert/recipes` (local override) → plugins (declaration
+order) → default catalog.
 
 If only `setup.toml` exists, qwert synthesizes meta from the directory name and uses the platform default adapter. If neither file exists, qwert falls back to `brew install <name>` / `apt install <name>`.
 
@@ -164,12 +178,19 @@ tools:
   - tmux
   - lvim
 
+plugins:
+  - name: my-recipes
+    url: https://github.com/user/my-recipes
+
 hooks:
   prepare:
     - ~/.qwert/zsh/prepare.sh
   init:
     - ~/.qwert/zsh/init.sh
 ```
+
+`plugins` is managed by `qwert plugin add/remove` — each entry is a git recipes repo
+cloned to `~/.local/share/qwert/plugins/<name>/`.
 
 ## State tracking
 
