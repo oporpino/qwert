@@ -36,14 +36,19 @@ pub trait InstallerOps {
     fn configure_shell(&self) -> Result<PathBuf>;
 }
 
-/// Returns the platform-specific installer implementation.
+/// Returns the platform-specific installer implementation, based on the real OS
+/// (qwert's own installation layout), never on a yuiop platform override.
 pub fn installer() -> Box<dyn InstallerOps> {
-    match detect() {
-        Platform::MacOS => Box::new(impls::macos::MacOS),
-        Platform::Debian => Box::new(impls::debian::Debian),
-        Platform::Arch => Box::new(impls::arch::Arch),
-        Platform::Unknown => Box::new(impls::linux::Linux),
+    if cfg!(target_os = "macos") {
+        return Box::new(impls::macos::MacOS);
     }
+    if std::path::Path::new("/usr/bin/pacman").exists() {
+        return Box::new(impls::arch::Arch);
+    }
+    if std::path::Path::new("/usr/bin/apt-get").exists() {
+        return Box::new(impls::debian::Debian);
+    }
+    Box::new(impls::linux::Linux)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -67,51 +72,24 @@ impl std::fmt::Display for Platform {
     }
 }
 
-/// Read an explicit platform override from machine.yml (`qwert platform <platform>`)
-/// or the QWERT_PLATFORM env var.
-fn overridden_platform() -> Option<Platform> {
-    let raw = std::env::var("QWERT_PLATFORM")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| {
-            crate::config::machine::MachineIdentity::load()
-                .ok()
-                .and_then(|m| m.platform)
-        })?;
-    match raw.trim().to_ascii_lowercase().as_str() {
-        "macos" | "mac" | "darwin" => Some(Platform::MacOS),
-        "debian" | "ubuntu" | "debian-based" => Some(Platform::Debian),
-        "arch" | "manjaro" | "arch-based" => Some(Platform::Arch),
-        _ => None,
+/// Map a yuiop platform name (brew|apt|pacman) to a qwert Platform.
+pub fn platform_for_pm(pm: Option<&str>) -> Platform {
+    match pm {
+        Some("brew") => Platform::MacOS,
+        Some("apt") => Platform::Debian,
+        Some("pacman") => Platform::Arch,
+        _ => Platform::Unknown,
     }
 }
 
+/// The effective platform, per yuiop.
+///
+/// `yuiop` is the single owner of platform detection (it picks brew on macOS,
+/// apt on Debian, pacman on Arch). qwert only needs the platform name to select
+/// the right `macos`/`debian`/`arch` section of custom recipes and setups — it
+/// never maps a platform to a package manager itself.
 pub fn detect() -> Platform {
-    if cfg!(target_os = "macos") {
-        return Platform::MacOS;
-    }
-    if let Some(p) = overridden_platform() {
-        return p;
-    }
-    if cfg!(target_os = "linux") {
-        if std::path::Path::new("/usr/bin/apt-get").exists() {
-            return Platform::Debian;
-        }
-        if std::path::Path::new("/usr/bin/pacman").exists() {
-            return Platform::Arch;
-        }
-    }
-    Platform::Unknown
-}
-
-/// Core operations that vary by platform.
-/// Implement this trait per platform — override only what differs.
-pub trait PlatformOps {
-    /// Run a shell install command (e.g. "brew install neovim")
-    fn install(&self, cmd: &str) -> Result<()>;
-
-    /// Run a shell upgrade command
-    fn upgrade(&self, cmd: &str) -> Result<()>;
+    platform_for_pm(crate::adapters::yuiop::platform_name().as_deref())
 }
 
 /// Execute a shell command, streaming stdout/stderr to terminal
@@ -148,14 +126,25 @@ pub fn run_cmd_capture(cmd: &str) -> Result<(), String> {
     }
 }
 
-/// Check if a binary exists on PATH
+/// Check if a binary exists on PATH (portable across macOS and Linux).
 pub fn which(binary: &str) -> bool {
-    std::process::Command::new("which")
-        .arg("-s")
-        .arg(binary)
+    std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("command -v {}", shell_escape(binary)))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
+}
+
+/// Minimal escaping for a single-word binary name in a `sh -c` string.
+fn shell_escape(word: &str) -> String {
+    if word.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '/' || c == '.') {
+        word.to_string()
+    } else {
+        format!("{:?}", word)
+    }
 }
 
 /// Get the installed version of a binary
@@ -178,16 +167,6 @@ pub fn ensure_shell() -> anyhow::Result<()> {
     let inst = installer();
     let rc = shared::resolve_rc(&inst.shell_rc_candidates())?;
     shared::ensure_shell_hooks(&rc)
-}
-
-/// Get the current platform ops implementation
-pub fn current() -> Box<dyn PlatformOps> {
-    match detect() {
-        Platform::MacOS => Box::new(impls::macos::MacOS),
-        Platform::Debian => Box::new(impls::debian::Debian),
-        Platform::Arch => Box::new(impls::arch::Arch),
-        Platform::Unknown => Box::new(impls::linux::Linux),
-    }
 }
 
 #[cfg(test)]

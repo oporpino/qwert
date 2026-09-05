@@ -49,21 +49,21 @@ Regras de resolução:
 | legado `pkg = "..."` | usado apenas no brew; nas demais plataformas usa `meta.name` |
 | legado `type = "qwert"` | deprecado, tratado como `custom` |
 
-### Camada interna de resolução (yuiop)
+### Camada de package management (yuiop)
 
-`yuiop` — assim como `qwert` abre a linha superior do teclado, `yuiop` fecha: juntos cobrem `QWERTYUIOP`. O yuiop **não vira comando de usuário** — é a camada de resolução interna (módulo `src/yuiop.rs`). Substitui a dupla `for_kind()` + `default_adapter()` espalhada por `runner.rs`, `apply.rs`, `use_cmd.rs`, `install_cmd.rs`, `uninstall_cmd.rs`, `drop_cmd.rs` por um ponto único:
+`yuiop` — assim como `qwert` abre a linha superior do teclado, `yuiop` fecha: juntos cobrem `QWERTYUIOP`. O yuiop é um **binário standalone** (`brew`/`apt`/`pacman` wrapper universal) chamado pelo qwert como subprocesso (`yuiop --json <verb> <canonical>`). O qwert passa apenas o **nome canônico** do recipe; o yuiop detecta a plataforma, resolve o nome por PM (`packages` / catálogo embutido) e executa o gerenciador. Substitui a antiga dupla `for_kind()` + `default_adapter()` (e os adapters `brew.rs`/`apt.rs`/`pacman.rs` embutidos) por um ponto único:
 
 ```
-recipe + plataforma detectada → (PM escolhido, nome do pacote) → comando concreto
+recipe → `yuiop <verb> <canonical> --json` → PM da plataforma (brew/apt/pacman)
 ```
 
-| Plataforma | PM | Instalação (ex.) | Lista |
+| Plataforma | PM | Instalação (ex.) | Nota |
 |---|---|---|---|
-| macOS | brew | `brew install <pkg>` | `brew list` |
-| Debian | apt | `apt-get install -y <pkg>` | `dpkg -l` |
-| Arch | pacman | `pacman -S --noconfirm <pkg>` | `pacman -Q` |
+| macOS | brew | `brew install <pkg>` | yuiop resolve o nome no tag |
+| Debian | apt | `apt-get install -y <pkg>` | yuiop usa sudo |
+| Arch | pacman | `pacman -S --noconfirm <pkg>` | yuiop usa sudo |
 
-Efeitos colaterais: `quem busca recipe resolvido pode finalmente morar em `src/adapters/` com testes próprios; os fallbacks de `default_adapter()` somem (só o `yuiop` resolve).
+Efeitos colaterais: `src/adapters/` vira só a ponte do subprocesso (com testes de parsing); os fallbacks de `default_adapter()` somem (só o `yuiop` resolve); `qwert platform <macos|debian|arch>` apenas repassa o override para `yuiop platform <brew|apt|pacman>`, que persiste em `~/.config/yuiop/config.yml`.
 
 ## História
 
@@ -138,7 +138,7 @@ Funcionalidade: Recipes agnósticos de gerenciador de pacotes
 
 ## Non-goals
 
-- Não expor um comando de usuário `yuiop` — a superfície continua `qwert install/use/apply`.
+- Não expor comando de usuário `yuiop` **no qwert** — a superfície continua `qwert install/use/apply`; o `yuiop` é um binário separado que o qwert invoca.
 - Não adicionar PMs além dos nativos (brew/apt/pacman) nesta fase; a tabela `packages` já permite estender depois (ex: `aur`).
 - Não migrar os recipes existentes de volta — compatibilidade preservada via regras de deprecação.
 - Não mudar o mecanismo de distribuição de recipes (ver spec de split/plugins abaixo).
@@ -147,5 +147,5 @@ Funcionalidade: Recipes agnósticos de gerenciador de pacotes
 ## Dependências & referências
 
 - Spec relacionada: `.project/docs/specs/20260904163512_split_recipes_plugin_system.md` — o schema de `install.toml` documentado no README do futuro repo `qwert-recipes` deve incluir a tabela `packages` e os tipos novos; e a resolução por PM deve valer igualmente para recipes de plugins.
-- Código afetado: `src/adapters/` (`mod.rs`, `brew.rs`, `apt.rs`, `pacman.rs`), `src/recipe/runner.rs`, `src/recipe/index.rs` (`default_kind`), `src/commands/apply.rs`, `use_cmd.rs`, `install_cmd.rs`, `uninstall_cmd.rs`, `drop_cmd.rs`, `src/config/qwert_yml.rs` (`packages` inline se aplicável).
+- Código afetado: `src/adapters/` (`mod.rs`, `yuiop.rs`), `src/recipe/runner.rs`, `src/recipe/index.rs` (`default_kind`), `src/commands/apply.rs`, `use_cmd.rs`, `install_cmd.rs`, `uninstall_cmd.rs`, `drop_cmd.rs`, `src/config/qwert_yml.rs` (`packages` inline se aplicável).
 - Regras: `.project/ai/rules/recipes.md` — mudança de schema exige bump de `recipes/VERSION`.

@@ -113,8 +113,11 @@ pub fn run(all: bool) -> Result<()> {
                 rows.push(Row { name: name.clone(), status, ok, manager, setup_ok, origin, version, profiles });
             }
             None => {
-                // No recipe — managed by the platform's default package manager.
-                let installed = crate::platform::which(name);
+                // No recipe — managed by yuiop (the platform's package manager).
+                // Ask yuiop for the authoritative status; `which` covers tools
+                // yuiop does not know.
+                let installed = crate::adapters::yuiop::status(name)
+                    .unwrap_or_else(|| crate::platform::which(name));
                 let version = if installed {
                     crate::platform::version_of(name, "--version").unwrap_or_else(|| "—".to_string())
                 } else {
@@ -125,7 +128,7 @@ pub fn run(all: bool) -> Result<()> {
                     name: name.clone(),
                     status,
                     ok: installed,
-                    manager: "default".to_string(),
+                    manager: "yuiop".to_string(),
                     setup_ok: false,
                     origin: "—".to_string(),
                     version,

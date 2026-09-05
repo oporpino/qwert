@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::PathBuf;
 
-use crate::platform::{InstallerOps, PlatformOps, run_cmd, shared};
+use crate::platform::{InstallerOps, shared};
 
 fn ensure_brew_shellenv(rc: &std::path::Path) {
     let brew_bin = if std::env::consts::ARCH == "aarch64" {
@@ -26,16 +26,6 @@ fn brew_prefix() -> Option<PathBuf> {
 }
 
 pub struct MacOS;
-
-impl PlatformOps for MacOS {
-    fn install(&self, cmd: &str) -> Result<()> {
-        run_cmd(cmd)
-    }
-
-    fn upgrade(&self, cmd: &str) -> Result<()> {
-        run_cmd(cmd)
-    }
-}
 
 impl InstallerOps for MacOS {
     fn binary_path(&self) -> PathBuf {

@@ -65,7 +65,7 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                 printer::bullet(&format!("would uninstall: {}", name));
                 continue;
             }
-            // The platform's own package manager (brew/apt/pacman) is never a tool —
+            // The system's own package manager (brew/apt/pacman) is never a tool —
             // it may appear in state from a bootstrap step. Keep it, just untrack.
             if crate::adapters::is_package_manager(name) {
                 state.mark_removed(name);
@@ -83,19 +83,14 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                     }
                 }
                 None => {
-                    match crate::adapters::default_adapter() {
-                        Some(adapter) => {
-                            if crate::platform::run_cmd(&adapter.uninstall_cmd(name)).is_ok() {
-                                state.mark_removed(name);
-                                printer::ok(name, "uninstalled");
-                                orphan_done += 1;
-                            } else {
-                                printer::failed(name, "uninstall failed — remove manually");
-                                orphan_failed += 1;
-                            }
+                    match crate::adapters::yuiop::uninstall(name) {
+                        Ok(_) => {
+                            state.mark_removed(name);
+                            printer::ok(name, "uninstalled");
+                            orphan_done += 1;
                         }
-                        None => {
-                            printer::failed(name, "no recipe and no package manager — remove manually");
+                        Err(e) => {
+                            printer::failed(name, &format!("uninstall failed: {e}"));
                             orphan_failed += 1;
                         }
                     }
@@ -123,13 +118,13 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
         printer::h2("Would install");
         printer::blank();
         for name in &tools {
-            printer::bullet(&format!("{}", name));
+            printer::bullet(name);
         }
         printer::blank();
         printer::h2("Would setup");
         printer::blank();
         for name in &tools {
-            printer::bullet(&format!("{}", name));
+            printer::bullet(name);
         }
         printer::blank();
         return Ok(());
@@ -163,20 +158,15 @@ pub fn run(tool: Option<&str>, dry_run: bool) -> Result<()> {
                     printer::ok(name, "already installed");
                     install_done += 1;
                 } else {
-                    match crate::adapters::default_adapter() {
-                        Some(adapter) => {
-                            if crate::platform::run_cmd(&adapter.install_cmd(name)).is_ok() {
-                                let version = crate::platform::version_of(name, "--version");
-                                state.mark_installed(name, version.as_deref());
-                                printer::ok(name, "installed");
-                                install_done += 1;
-                            } else {
-                                printer::failed(name, "install failed");
-                                install_failed += 1;
-                            }
+                    match crate::adapters::yuiop::install(name) {
+                        Ok(_) => {
+                            let version = crate::platform::version_of(name, "--version");
+                            state.mark_installed(name, version.as_deref());
+                            printer::ok(name, "installed");
+                            install_done += 1;
                         }
-                        None => {
-                            printer::failed(name, "no recipe and no package manager available");
+                        Err(e) => {
+                            printer::failed(name, &e);
                             install_failed += 1;
                         }
                     }

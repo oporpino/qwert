@@ -28,15 +28,9 @@ pub fn run(name: &str) -> Result<()> {
             runner::uninstall_with_output(&recipe);
         }
         None => {
-            match crate::adapters::default_adapter() {
-                Some(adapter) => {
-                    if let Err(e) = crate::platform::run_cmd(&adapter.uninstall_cmd(name)) {
-                        printer::failed(name, &e.to_string());
-                    } else {
-                        printer::ok(name, "uninstalled");
-                    }
-                }
-                None => printer::failed(name, "no package manager available on this platform"),
+            match crate::adapters::yuiop::uninstall(name) {
+                Ok(_) => printer::ok(name, "uninstalled"),
+                Err(e) => printer::failed(name, &e),
             }
         }
     }

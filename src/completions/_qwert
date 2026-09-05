@@ -27,14 +27,6 @@ _qwert_declared_tools() {
   [[ ${#tools} -gt 0 ]] && compadd -a tools
 }
 
-_qwert_versions() {
-  local tool="$1"
-  [[ -z "$tool" ]] && return
-  local -a versions
-  versions=($(qwert _versions "$tool" 2>/dev/null))
-  [[ ${#versions} -gt 0 ]] && compadd -a versions
-}
-
 _qwert() {
   local state
 
@@ -75,7 +67,6 @@ _qwert() {
         use)
           case $((CURRENT - 2)) in
             1) _qwert_tools ;;
-            2) _qwert_versions "$words[3]" ;;
           esac
           ;;
         install|setup|uninstall|drop|info|reinstall)

@@ -1,19 +1,9 @@
 use anyhow::Result;
 use std::path::PathBuf;
 
-use crate::platform::{InstallerOps, PlatformOps, run_cmd, shared};
+use crate::platform::{InstallerOps, shared};
 
 pub struct Linux;
-
-impl PlatformOps for Linux {
-    fn install(&self, cmd: &str) -> Result<()> {
-        run_cmd(cmd)
-    }
-
-    fn upgrade(&self, cmd: &str) -> Result<()> {
-        run_cmd(cmd)
-    }
-}
 
 impl InstallerOps for Linux {
     fn binary_path(&self) -> PathBuf {

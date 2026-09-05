@@ -15,8 +15,8 @@ pub enum RunResult {
 
 /// Check if a recipe is already installed
 pub fn is_installed(recipe: &Recipe) -> bool {
-    // Package recipes: ask the platform's PM — more accurate than `which`, and it
-    // works when the platform PM differs from the recipe's legacy `type`.
+    // Package recipes: ask yuiop (the platform's package manager) — more accurate
+    // than `which`, and it knows the per-manager package name.
     if crate::adapters::yuiop::is_package_kind(&recipe.meta.kind) {
         return match crate::adapters::yuiop::registered(&recipe.meta) {
             Some(installed) => installed,
@@ -43,11 +43,11 @@ pub fn installed_version(recipe: &Recipe) -> Option<String> {
 }
 
 fn run_install(cmd: &str) -> Result<(), String> {
-    platform::current().install(cmd).map_err(|e| e.to_string())
+    platform::run_cmd(cmd).map_err(|e| e.to_string())
 }
 
 fn run_upgrade(cmd: &str) -> Result<(), String> {
-    platform::current().upgrade(cmd).map_err(|e| e.to_string())
+    platform::run_cmd(cmd).map_err(|e| e.to_string())
 }
 
 pub fn version_msg(prefix: &str, version: Option<String>) -> String {
@@ -83,11 +83,10 @@ pub fn install(recipe: &Recipe, recipes_dir: &Path) -> RunResult {
         }
     }
 
-    // Package recipes resolve through the platform's PM (yuiop). The recipe never
-    // forces a specific PM — on macOS it installs via brew, on Debian via apt, on
-    // Arch via pacman.
+    // Package recipes go through yuiop — the recipe never forces a specific PM;
+    // on macOS it installs via brew, on Debian via apt, on Arch via pacman.
     if crate::adapters::yuiop::is_package_kind(&recipe.meta.kind) {
-        return match crate::adapters::yuiop::install(&recipe.meta) {
+        return match crate::adapters::yuiop::install(&recipe.meta.name) {
             Ok(_) => RunResult::Installed,
             Err(e) => RunResult::Failed(e),
         };
@@ -114,9 +113,9 @@ pub fn install(recipe: &Recipe, recipes_dir: &Path) -> RunResult {
 pub fn uninstall(recipe: &Recipe) -> RunResult {
     let platform = platform::detect();
 
-    // Package recipes uninstall through the platform PM.
+    // Package recipes uninstall through yuiop.
     if crate::adapters::yuiop::is_package_kind(&recipe.meta.kind) {
-        return match crate::adapters::yuiop::uninstall(&recipe.meta) {
+        return match crate::adapters::yuiop::uninstall(&recipe.meta.name) {
             Ok(_) => RunResult::Installed,
             Err(e) => RunResult::Failed(e),
         };
@@ -146,9 +145,8 @@ pub fn uninstall_with_output(recipe: &Recipe) -> bool {
         RunResult::Failed(err) => {
             if err.contains("required by") || err.contains("is a dependency of") {
                 printer::warning(&format!(
-                    "{} not uninstalled — required by another package. \
-                     Remove manually: brew uninstall --ignore-dependencies {}",
-                    name, name
+                    "{} not uninstalled — required by another package. Remove it manually.",
+                    name
                 ));
                 true
             } else {
@@ -164,9 +162,9 @@ pub fn uninstall_with_output(recipe: &Recipe) -> bool {
 pub fn upgrade(recipe: &Recipe) -> RunResult {
     let platform = platform::detect();
 
-    // Package recipes upgrade through the platform PM.
+    // Package recipes upgrade through yuiop.
     if crate::adapters::yuiop::is_package_kind(&recipe.meta.kind) {
-        return match crate::adapters::yuiop::upgrade(&recipe.meta) {
+        return match crate::adapters::yuiop::upgrade(&recipe.meta.name) {
             Ok(_) => RunResult::Installed,
             Err(e) => RunResult::Failed(e),
         };

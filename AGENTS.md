@@ -51,16 +51,13 @@ src/
 │   ├── schema.rs           ← Recipe, RecipeMeta, RecipeKind, RecipeSetup, Commands
 │   ├── index.rs            ← find/load_all — local > plugins > default cache
 │   └── runner.rs           ← install/upgrade/uninstall/setup/undo_setup
-├── adapters/               ← package manager adapters
-│   ├── mod.rs              ← PackageAdapter trait + for_kind()
-│   ├── brew.rs
-│   ├── apt.rs
-│   └── pacman.rs
+├── adapters/               ← the yuiop bridge (subprocess + JSON parsing)
+│   └── yuiop.rs            ← install/uninstall/upgrade/status/search/platform — all via `yuiop`
 ├── config/
 │   ├── qwert_yml.rs        ← reads/writes ~/.qwert/config.yml
 │   └── state_yml.rs        ← tracks what qwert installed (~/.local/share/qwert/state.yml)
 ├── platform/
-│   ├── mod.rs              ← Platform enum, detect(), which(), run_cmd()
+│   ├── mod.rs              ← Platform enum, detect() (from yuiop), which(), run_cmd()
 │   └── fs.rs               ← create_symlink(), copy_file()
 └── ui/
     ├── printer.rs           ← ok/installing/failed/search_result/command
@@ -80,7 +77,7 @@ qwert apply                  # install + setup all declared tools, uninstall orp
 qwert apply <tool>
 qwert status / status <tool>
 qwert info <tool>            # recipe details, install status, setup status
-qwert search <term>          # searches recipes + brew
+qwert search <term>          # searches recipes + yuiop (the package manager)
 qwert list
 qwert upgrade / upgrade <tool>
 qwert upgrade --all
@@ -98,6 +95,22 @@ qwert doctor
 qwert config edit
 qwert help
 ```
+
+## Package management == yuiop
+
+Every system-package operation goes through the `yuiop` binary as a subprocess
+(`yuiop --json <verb> <canonical>`). qwert passes only the recipe's **canonical**
+name; yuiop detects the platform, resolves the per-manager package
+(`packages` table / embedded catalog), and runs brew/apt/pacman.
+
+- `qwert` ships **no** brew/apt/pacman adapters anymore; `src/adapters/yuiop.rs`
+  is the single bridge (spawns the binary, parses its JSON, reports errors).
+- `platform::detect()` asks `yuiop platform --json` (cached per process). qwert
+  never maps a platform to a package manager itself.
+- `qwert platform <macos|debian|arch>` forwards the override to `yuiop platform
+  <brew|apt|pacman>` (yuiop owns persistence: `~/.config/yuiop/config.yml`).
+- If the `yuiop` binary is missing, package operations fail with an install hint.
+  The qwert installer (`scripts/install.sh`) installs yuiop too.
 
 ## Recipe System
 
@@ -118,16 +131,15 @@ recipes/
 Recipe lookup precedence: `~/.qwert/recipes` (local override) → plugins (declaration
 order) → default catalog.
 
-If only `setup.toml` exists, qwert synthesizes meta from the directory name and uses the platform default adapter. If neither file exists, qwert falls back to `brew install <name>` / `apt install <name>`.
+If only `setup.toml` exists, qwert synthesizes meta from the directory name and treats it as a package (installed via yuiop). If neither file exists, qwert falls back to `yuiop install <name>`.
 
 ### Types
 
 | Type | Behavior |
 |------|----------|
-| `brew` | BrewAdapter handles install/upgrade/uninstall from `meta.name` |
-| `apt` | AptAdapter — same pattern |
-| `pacman` | PacmanAdapter — same pattern |
-| `qwert` | Custom commands in `[install]`, `[upgrade]`, `[uninstall]` sections |
+| `package` (no `type`) | Installed via yuiop — the platform's PM (brew/apt/pacman) |
+| `brew`/`apt`/`pacman` | Legacy — treated as a package; yuiop resolves the per-manager name |
+| `custom`/`qwert` | Custom commands in `[install]`, `[upgrade]`, `[uninstall]` sections |
 
 ### `install.toml`
 
@@ -136,15 +148,15 @@ If only `setup.toml` exists, qwert synthesizes meta from the directory name and 
 name = "tmux"
 version = "1.0.0"
 description = "Terminal multiplexer"
-type = "brew"          # brew | apt | pacman | qwert
+# sem `type` → package: yuiop instala no PM da plataforma
 depends = []           # other recipe names to install first
-pkg = "git-delta"      # optional: override package name (default: meta.name)
+packages = { brew = "tmux", apt = "tmux", pacman = "tmux" }  # optional per-PM names; default: meta.name
 
 [check]
 command = "tmux"
 version_flag = "-V"
 
-# Only needed for type = "qwert" or cross-platform fallback
+# Only needed for type = "custom"/"qwert" or cross-platform fallback
 [install]
 macos = "custom install command"
 debian = ["step one", "step two"]
@@ -171,9 +183,12 @@ macos = ["defaults delete com.googlecode.iterm2 PrefsCustomFolder"]
 - copy (dest exists, no symlink) — undo backs up to `~/.local/share/qwert/backups/<name>/` then removes
 - commands — undo runs `[undo]` section; warns if not defined
 
-### Adapter pattern
+### Package recipes
 
-For `brew`/`apt`/`pacman` recipes, **do not write `[install]`/`[upgrade]`/`[uninstall]` sections** — the adapter derives commands from `meta.name` (or `meta.pkg` if set). Explicit sections are only for `qwert` type or platform fallback.
+For `package` recipes (no `type`, or legacy `brew`/`apt`/`pacman`), **do not write
+`[install]`/`[upgrade]`/`[uninstall]` sections** — yuiop derives the command from the
+canonical name (or `packages.<pm>`). Explicit sections are only for `custom` recipes
+or platform fallback.
 
 ## config.yml schema
 
@@ -202,28 +217,17 @@ cloned to `~/.local/share/qwert/plugins/<name>/`.
 
 ## Platform detection
 
-`platform::detect()` returns `Platform::MacOS`, `Platform::Debian`, or `Platform::Unknown`.
-Detection: `cfg!(target_os = "macos")` for macOS; `/usr/bin/apt-get` for Debian.
+Platform detection lives in `yuiop`, not qwert. `platform::detect()` returns
+`Platform::MacOS`, `Platform::Debian`, `Platform::Arch`, or `Platform::Unknown` by
+asking `yuiop platform --json`. qwert never maps an OS to a package manager — it
+only needs the platform to pick the custom-recipe/setup section (`macos`/`debian`/`arch`).
 
 ## Testing
 
 Follow `.project/ai/commands/test.md` for test conventions.
 
-**Test files are separate from source files** using Rust's `#[path]` attribute:
-
-```
-src/adapters/brew.rs          ← source
-src/adapters/tests/brew.rs    ← tests
-```
-
-Link from the source file:
-```rust
-#[cfg(test)]
-#[path = "tests/brew.rs"]
-mod tests;
-```
-
-All tests follow the triple-A pattern (`// arrange`, `// act`, `// assert`).
+Tests follow the triple-A pattern (`// arrange`, `// act`, `// assert`). They live
+in `#[cfg(test)] mod tests` — inline for new modules, or via `#[path]` for older ones.
 
 Run tests: `make t`
 

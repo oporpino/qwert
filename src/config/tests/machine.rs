@@ -6,7 +6,7 @@ fn from_env_parses_profile() {
     // arrange
     let env = "dev";
     // act
-    let identity = MachineIdentity::from_env(Some(env), None);
+    let identity = MachineIdentity::from_env(Some(env));
     // assert
     assert_eq!(identity.profile.as_deref(), Some("dev"));
 }
@@ -16,19 +16,9 @@ fn from_env_empty_is_none() {
     // arrange
     let env = "  ";
     // act
-    let identity = MachineIdentity::from_env(Some(env), None);
+    let identity = MachineIdentity::from_env(Some(env));
     // assert
     assert_eq!(identity.profile, None);
-}
-
-#[test]
-fn from_env_parses_platform() {
-    // arrange
-    let platform = "arch";
-    // act
-    let identity = MachineIdentity::from_env(None, Some(platform));
-    // assert
-    assert_eq!(identity.platform.as_deref(), Some("arch"));
 }
 
 #[test]
@@ -45,12 +35,24 @@ fn load_returns_default_when_file_missing() {
 fn save_to_and_load_from_roundtrip() {
     // arrange
     let path = std::env::temp_dir().join("qwert_machine_roundtrip.yml");
-    let identity = MachineIdentity { profile: Some("dev".into()), platform: None };
+    let identity = MachineIdentity { profile: Some("dev".into()) };
     // act
     identity.save_to(&path).unwrap();
     let loaded = MachineIdentity::load_from(&path).unwrap();
     fs::remove_file(&path).ok();
     // assert
+    assert_eq!(loaded.profile.as_deref(), Some("dev"));
+}
+
+#[test]
+fn save_ignores_legacy_platform_key() {
+    // arrange
+    let path = std::env::temp_dir().join("qwert_machine_legacy_platform.yml");
+    fs::write(&path, "profile: dev\nplatform: arch\n").unwrap();
+    // act
+    let loaded = MachineIdentity::load_from(&path).unwrap();
+    fs::remove_file(&path).ok();
+    // assert — the legacy platform key is tolerated and ignored
     assert_eq!(loaded.profile.as_deref(), Some("dev"));
 }
 
@@ -68,7 +70,7 @@ fn env_override_wins_over_file() {
 #[test]
 fn set_profile_replaces_existing() {
     // arrange
-    let mut identity = MachineIdentity { profile: Some("dev".into()), platform: None };
+    let mut identity = MachineIdentity { profile: Some("dev".into()) };
     // act
     identity.set_profile("server".into());
     // assert
@@ -78,7 +80,7 @@ fn set_profile_replaces_existing() {
 #[test]
 fn active_profile_falls_back_to_default() {
     // arrange
-    let identity = MachineIdentity { profile: None, platform: None };
+    let identity = MachineIdentity { profile: None };
     // act
     let active = identity.active_profile();
     // assert
@@ -88,7 +90,7 @@ fn active_profile_falls_back_to_default() {
 #[test]
 fn active_profile_returns_set_profile() {
     // arrange
-    let identity = MachineIdentity { profile: Some("server".into()), platform: None };
+    let identity = MachineIdentity { profile: Some("server".into()) };
     // act
     let active = identity.active_profile();
     // assert

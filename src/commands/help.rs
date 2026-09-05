@@ -15,7 +15,7 @@ pub fn run() {
     printer::h2("Information");
     printer::command("status [tool]", "show install status of declared tools");
     printer::command("list",          "list declared tools");
-    printer::command("search <name>", "search recipes and brew");
+    printer::command("search <name>", "search recipes and yuiop (the package manager)");
     printer::blank();
 
     printer::h2("Maintenance");

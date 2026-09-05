@@ -18,7 +18,7 @@ qwert uninstall <tool>   # remove from config + uninstall
 qwert drop <tool>        # full teardown: uninstall + undo setup
 qwert apply              # sync all declared tools
 qwert status             # show installed tools
-qwert search <term>      # search recipes + brew
+qwert search <term>      # search recipes + yuiop (the package manager)
 qwert upgrade <tool>     # upgrade a tool
 qwert upgrade --all      # upgrade all tools
 qwert recipes update     # sync the default recipe catalog
@@ -65,3 +65,7 @@ Save `~/.qwert/` in a private repository. On a new machine, clone it and run `qw
 The default recipes are git-cloned to `~/.local/share/qwert/recipes/` from the
 [qwert-recipes](https://github.com/br4zz4/qwert-recipes) repo. Each recipe can define install
 steps, setup (symlinks, copies, commands), and undo behaviour.
+
+Package installation delegates to [yuiop](https://github.com/br4zz4/yuiop), the universal
+wrapper over `brew`/`apt`/`pacman`. qwert passes a tool's canonical name and yuiop resolves the
+platform's package manager — qwert never maps a platform to a PM itself.

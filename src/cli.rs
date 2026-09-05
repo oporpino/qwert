@@ -60,7 +60,7 @@ pub enum Command {
         tool: Option<String>,
     },
 
-    /// Search recipes and brew by name
+    /// Search recipes and yuiop (the package manager)
     Search {
         /// Tool name to search for
         name: String,
@@ -70,13 +70,6 @@ pub enum Command {
     Completions {
         /// Shell: bash, zsh, fish
         shell: String,
-    },
-
-    /// Print available versions for a tool (used by shell completions)
-    #[command(name = "_versions", hide = true)]
-    Versions {
-        /// Tool name
-        name: String,
     },
 
     /// Search tools and output name\tdescription per line (used by shell completions)

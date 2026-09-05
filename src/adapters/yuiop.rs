@@ -1,143 +1,280 @@
-//! yuiop — the internal package-manager resolution layer.
+//! yuiop — the single package-management engine behind qwert.
 //!
-//! `qwert` + `yuiop` = `QWERTYUIOP`. Recipes are package-manager agnostic: they say
-//! *which* package (optionally with a name per PM via `packages`); yuiop picks *how*
-//! to install it — brew on macOS, apt on Debian, pacman on Arch. This is the single
-//! place that maps a platform to its package manager.
+//! `qwert` + `yuiop` = `QWERTYUIOP`. qwert delegates every system-package
+//! operation to the `yuiop` binary (`yuiop <verb> <canonical> --json`) and parses
+//! its JSON output. qwert passes the recipe's *canonical* name only; yuiop detects
+//! the platform and resolves the per-manager package (brew/apt/pacman). qwert has
+//! no package-manager knowledge of its own — no brewing, no apt, no pacman here.
+//!
+//! See the yuiop contract: `https://github.com/br4zz4/yuiop/blob/main/docs/CONTRACT.md`
 
-use super::{AptAdapter, BrewAdapter, PackageAdapter, PacmanAdapter};
-use crate::platform::{self, Platform};
-use crate::recipe::schema::{RecipeKind, RecipeMeta};
+use std::sync::OnceLock;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Pm {
-    Brew,
-    Apt,
-    Pacman,
+use crate::platform;
+use crate::recipe::schema::RecipeKind;
+
+/// Where to install yuiop for users without it on PATH (mirrors yuiop's install.sh).
+const FALLBACK_DIR: &str = ".local/bin/yuiop";
+
+/// Message shown when the yuiop binary is missing.
+const MISSING_HINT: &str = "yuiop binary not found — install it with:\n  curl -fsSL https://raw.githubusercontent.com/br4zz4/yuiop/main/install.sh | bash";
+
+/// Is the yuiop binary available to run?
+pub fn available() -> bool {
+    binary().is_some()
 }
 
-impl Pm {
-    /// The package manager for the current platform, if any.
-    pub fn current() -> Option<Pm> {
-        match platform::detect() {
-            Platform::MacOS => Some(Pm::Brew),
-            Platform::Debian => Some(Pm::Apt),
-            Platform::Arch => Some(Pm::Pacman),
-            Platform::Unknown => None,
-        }
+/// Resolved path to the yuiop binary (PATH first, then ~/.local/bin/yuiop).
+pub fn binary() -> Option<String> {
+    if platform::which("yuiop") {
+        return Some("yuiop".to_string());
     }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Pm::Brew => "brew",
-            Pm::Apt => "apt",
-            Pm::Pacman => "pacman",
-        }
+    let fallback = dirs::home_dir()?.join(FALLBACK_DIR);
+    if fallback.exists() {
+        return Some(fallback.to_string_lossy().into_owned());
     }
-
-    pub fn adapter(self) -> Box<dyn PackageAdapter> {
-        match self {
-            Pm::Brew => Box::new(BrewAdapter),
-            Pm::Apt => Box::new(AptAdapter),
-            Pm::Pacman => Box::new(PacmanAdapter),
-        }
-    }
-
-    /// Is `pkg` installed, per the PM's own database?
-    pub fn installed(self, pkg: &str) -> bool {
-        let cmd = match self {
-            Pm::Brew => format!("brew list {pkg} &>/dev/null"),
-            Pm::Apt => format!("dpkg -s {pkg} &>/dev/null"),
-            Pm::Pacman => format!("pacman -Q {pkg} &>/dev/null"),
-        };
-        platform::run_cmd_capture(&cmd).is_ok()
-    }
+    None
 }
 
-/// A package resolved to a concrete PM + package name on the current platform.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Resolved {
-    pub pm: Pm,
-    pub pkg: String,
-}
-
-/// The recipe's effective package kind?
+/// Which recipe kinds resolve through yuiop as system packages.
 pub fn is_package_kind(kind: &RecipeKind) -> bool {
     kind.is_package()
 }
 
-/// Human label for a recipe's manager: the resolved platform PM for package
+/// Run `yuiop --json <cmd> <args...>` and capture stdout.
+///
+/// Ok(stdout) on exit 0. Err on any other exit — the message is yuiop's own
+/// stderr (e.g. "no knowledge of package 'x'"), or a synthesized error when the
+/// binary is missing or cannot run.
+fn run(cmd: &str, args: &[&str]) -> Result<String, String> {
+    let bin = binary().ok_or_else(|| MISSING_HINT.to_string())?;
+    let out = std::process::Command::new(&bin)
+        .arg("--json")
+        .arg(cmd)
+        .args(args)
+        .output()
+        .map_err(|e| format!("yuiop: {e}"))?;
+    match out.status.code() {
+        Some(0) => Ok(String::from_utf8_lossy(&out.stdout).into_owned()),
+        code => {
+            let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            if stderr.is_empty() {
+                Err(format!("yuiop {cmd} failed (exit {})", code.unwrap_or(-1)))
+            } else {
+                Err(stderr)
+            }
+        }
+    }
+}
+
+/// Install a system package by canonical name.
+pub fn install(canonical: &str) -> Result<(), String> {
+    run("install", &[canonical]).map(|_| ())
+}
+
+/// Remove a system package by canonical name.
+pub fn uninstall(canonical: &str) -> Result<(), String> {
+    run("remove", &[canonical]).map(|_| ())
+}
+
+/// Upgrade a system package by canonical name.
+pub fn upgrade(canonical: &str) -> Result<(), String> {
+    run("upgrade", &[canonical]).map(|_| ())
+}
+
+/// Is a canonical package installed, per yuiop's provider database?
+///
+/// `None` when yuiop is unavailable or does not know the package — the caller
+/// falls back to a `which` check.
+pub fn status(canonical: &str) -> Option<bool> {
+    let out = run("status", &[canonical]).ok()?;
+    parse_bool(&out, "installed")
+}
+
+/// Is a recipe's package already installed? `None` when unresolved (caller
+/// falls back to `which`).
+pub fn registered(meta: &crate::recipe::schema::RecipeMeta) -> Option<bool> {
+    status(&meta.name)
+}
+
+/// The effective platform name (brew|apt|pacman) according to yuiop, cached
+/// for the process lifetime.
+pub fn platform_name() -> Option<String> {
+    static PM: OnceLock<Option<String>> = OnceLock::new();
+    PM.get_or_init(|| {
+        let out = run("platform", &[]).ok()?;
+        parse_string(&out, "platform")
+    })
+    .clone()
+}
+
+/// Persist a platform override for this machine (yuiop owns the config).
+pub fn set_platform(name: &str) -> Result<(), String> {
+    let bin = binary().ok_or_else(|| MISSING_HINT.to_string())?;
+    let out = std::process::Command::new(&bin)
+        .args(["--json", "platform", name])
+        .output()
+        .map_err(|e| format!("yuiop: {e}"))?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
+}
+
+/// Human label for a recipe's manager: the yuiop platform name for package
 /// recipes, otherwise the recipe kind (custom/qwert/…). Used in status output.
-pub fn resolve_label(meta: &RecipeMeta) -> String {
+pub fn resolve_label(meta: &crate::recipe::schema::RecipeMeta) -> String {
     if is_package_kind(&meta.kind) {
-        resolve(meta)
-            .map(|r| r.pm.label().to_string())
-            .unwrap_or_else(|| meta.kind.to_string())
+        platform_name().unwrap_or_else(|| meta.kind.to_string())
     } else {
         meta.kind.to_string()
     }
 }
 
-/// Resolve a recipe's package for the current platform's PM.
-///
-/// Resolution order: `packages.<pm>` → legacy `pkg` (brew only) → `name`.
-pub fn resolve(meta: &RecipeMeta) -> Option<Resolved> {
-    let pm = Pm::current()?;
-    let pkg = meta
-        .packages
-        .as_ref()
-        .and_then(|map| map.get(pm.label()).cloned())
-        .or_else(|| (pm == Pm::Brew).then(|| meta.pkg.clone()).flatten())
-        .unwrap_or_else(|| meta.name.clone());
-    Some(Resolved { pm, pkg })
+/// Search packages in the yuiop provider. Exit 3 (no hits) yields `vec![]`.
+pub fn search(term: &str) -> Vec<String> {
+    let Some(bin) = binary() else { return vec![] };
+    let out = std::process::Command::new(&bin)
+        .args(["--json", "search", term])
+        .output();
+    let Ok(out) = out else { return vec![] };
+    if !out.status.success() {
+        return vec![];
+    }
+    parse_strings(&String::from_utf8_lossy(&out.stdout), "matches")
 }
 
-/// Is the recipe's package already installed? `None` when the platform has no PM
-/// (caller falls back to `which`).
-pub fn registered(meta: &RecipeMeta) -> Option<bool> {
-    resolve(meta).map(|r| r.pm.installed(&r.pkg))
+// --- JSON parsing -----------------------------------------------------------
+// The yuiop contract defines stable, one-document JSON. Parsing by hand keeps
+// qwert free of a JSON dependency; shapes are tiny and additive-tolerant.
+
+/// `{ ..., "key": true }` → Some(bool). Returns None when absent/unparseable.
+fn parse_bool(json: &str, key: &str) -> Option<bool> {
+    let pattern = format!("\"{key}\":");
+    let idx = json.find(&pattern)?;
+    let rest = &json[idx + pattern.len()..];
+    let token = rest.split([',', '}']).next()?.trim();
+    match token {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
+    }
 }
 
-fn run(meta: &RecipeMeta, op: fn(Box<dyn PackageAdapter>, &str) -> String) -> Result<(), String> {
-    let r = resolve(meta).ok_or_else(no_pm_hint)?;
-    let adapter = r.pm.adapter();
-    adapter.ensure().map_err(|e| e.to_string())?;
-    let cmd = op(adapter, &r.pkg);
-    platform::run_cmd(&cmd).map_err(|e| e.to_string())
+/// `{ ..., "key": "value" }` → Some("value"). Returns None when absent.
+fn parse_string(json: &str, key: &str) -> Option<String> {
+    let pattern = format!("\"{key}\":");
+    let idx = json.find(&pattern)?;
+    let rest = &json[idx + pattern.len()..];
+    let token = rest.trim_start();
+    let quoted = token.strip_prefix('"')?;
+    let end = quoted.find('"')?;
+    Some(quoted[..end].to_string())
 }
 
-/// Message used when no package manager can be resolved for the machine.
-fn no_pm_hint() -> String {
-    "could not detect a package manager for this machine — run `qwert platform <macos|debian|arch>` to set it explicitly"
-        .to_string()
-}
-
-pub fn install(meta: &RecipeMeta) -> Result<(), String> {
-    run(meta, |a, pkg| a.install_cmd(pkg))
-}
-
-pub fn upgrade(meta: &RecipeMeta) -> Result<(), String> {
-    run(meta, |a, pkg| a.upgrade_cmd(pkg))
-}
-
-pub fn uninstall(meta: &RecipeMeta) -> Result<(), String> {
-    run(meta, |a, pkg| a.uninstall_cmd(pkg))
+/// `{ ..., "key": ["a", "b"] }` → vec!["a", "b"]. Stops at the closing `]` so
+/// later keys (e.g. "platform", "term") never leak into the list.
+fn parse_strings(json: &str, key: &str) -> Vec<String> {
+    let pattern = format!("\"{key}\":");
+    let Some(idx) = json.find(&pattern) else { return vec![] };
+    let rest = &json[idx + pattern.len()..];
+    let rest = rest.trim_start();
+    let Some(list) = rest.strip_prefix('[') else { return vec![] };
+    let Some(end) = list.find(']') else { return vec![] };
+    let mut out = Vec::new();
+    for token in list[..end].split(',') {
+        if let Some(quoted) = token.trim().strip_prefix('"') {
+            if let Some(stop) = quoted.find('"') {
+                out.push(quoted[..stop].to_string());
+            }
+        }
+    }
+    out
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn meta(name: &str, kind: RecipeKind) -> RecipeMeta {
-        RecipeMeta {
-            name: name.to_string(),
-            version: "1.0.0".into(),
-            description: "test".into(),
-            kind,
-            depends: vec![],
-            packages: None,
-            pkg: None,
-        }
+    #[test]
+    fn parse_bool_finds_installed_field() {
+        // arrange
+        let json = r#"{"platform":"brew","package":"tmux","installed":true}"#;
+        // act
+        let installed = parse_bool(json, "installed");
+        // assert
+        assert_eq!(installed, Some(true));
+    }
+
+    #[test]
+    fn parse_bool_missing_field_is_none() {
+        // arrange
+        let json = r#"{"platform":"brew","packages":["delta","tmux"]}"#;
+        // act
+        let installed = parse_bool(json, "installed");
+        // assert
+        assert_eq!(installed, None);
+    }
+
+    #[test]
+    fn parse_bool_false_when_not_installed() {
+        // arrange
+        let json = r#"{"platform":"apt","package":"delta","installed": false}"#;
+        // act
+        let installed = parse_bool(json, "installed");
+        // assert
+        assert_eq!(installed, Some(false));
+    }
+
+    #[test]
+    fn parse_string_extracts_platform() {
+        // arrange
+        let json = r#"{ "platform": "pacman" }"#;
+        // act
+        let platform = parse_string(json, "platform");
+        // assert
+        assert_eq!(platform.as_deref(), Some("pacman"));
+    }
+
+    #[test]
+    fn parse_strings_extracts_matches() {
+        // arrange
+        let json = r#"{"platform":"brew","term":"delta","matches":["delta","git-delta"]}"#;
+        // act
+        let matches = parse_strings(json, "matches");
+        // assert
+        assert_eq!(matches, vec!["delta", "git-delta"]);
+    }
+
+    #[test]
+    fn parse_strings_ignores_keys_after_array() {
+        // arrange — yuiop emits matches before platform/term; those keys must not leak
+        let json = r#"{"matches":["fzf","ytfzf"],"platform":"pacman","term":"fzf"}"#;
+        // act
+        let matches = parse_strings(json, "matches");
+        // assert
+        assert_eq!(matches, vec!["fzf", "ytfzf"]);
+    }
+
+    #[test]
+    fn parse_strings_handles_no_hits() {
+        // arrange
+        let json = r#"{"platform":"brew","term":"zzz","matches":[]}"#;
+        // act
+        let matches = parse_strings(json, "matches");
+        // assert
+        assert!(matches.is_empty());
+    }
+
+    #[test]
+    fn parse_strings_handles_matches_last() {
+        // arrange — array is the final field; no trailing comma after it
+        let json = r#"{"platform":"brew","term":"delta","matches":["delta"]}"#;
+        // act
+        let matches = parse_strings(json, "matches");
+        // assert
+        assert_eq!(matches, vec!["delta"]);
     }
 
     #[test]
@@ -146,7 +283,7 @@ mod tests {
         let kinds = [RecipeKind::Package, RecipeKind::Brew, RecipeKind::Apt, RecipeKind::Pacman];
         // act + assert
         for k in &kinds {
-            assert!(is_package_kind(k), "{} should resolve as package", k);
+            assert!(is_package_kind(k), "{} should resolve via yuiop", k);
         }
     }
 
@@ -157,50 +294,6 @@ mod tests {
         // act + assert
         for k in &kinds {
             assert!(!is_package_kind(k), "{} should be custom", k);
-        }
-    }
-
-    #[test]
-    fn resolve_uses_packages_entry_for_current_pm() {
-        // arrange
-        let mut m = meta("asdf", RecipeKind::Package);
-        m.packages = Some(
-            [("brew", "asdf-brew"), ("apt", "asdf-apt"), ("pacman", "asdf-pacman")]
-                .iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect(),
-        );
-        // act
-        let r = resolve(&m);
-        // assert
-        let r = r.expect("current platform should map to a PM");
-        let expected = format!("asdf-{}", r.pm.label());
-        assert_eq!(r.pkg, expected, "uses the entry for the current PM");
-    }
-
-    #[test]
-    fn resolve_falls_back_to_name_when_no_packages_table() {
-        // arrange
-        let m = meta("fzf", RecipeKind::Package);
-        // act
-        let r = resolve(&m);
-        // assert
-        assert_eq!(r.map(|r| r.pkg), Some("fzf".to_string()));
-    }
-
-    #[test]
-    fn resolve_uses_legacy_pkg_only_for_brew_generic_name_otherwise() {
-        // arrange
-        let mut m = meta("opencode", RecipeKind::Brew);
-        m.pkg = Some("anomalyco/tap/opencode".into());
-        // act
-        let r = resolve(&m);
-        // assert — brew gets the tap, other PMs get the plain name
-        let r = r.expect("current platform should map to a PM");
-        if r.pm == Pm::Brew {
-            assert_eq!(r.pkg, "anomalyco/tap/opencode");
-        } else {
-            assert_eq!(r.pkg, "opencode");
         }
     }
 }

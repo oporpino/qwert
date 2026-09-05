@@ -1,47 +1,61 @@
 use super::*;
 
-fn with_platform_env(raw: &str, f: impl FnOnce()) {
-    std::env::set_var("QWERT_PLATFORM", raw);
-    f();
-    std::env::remove_var("QWERT_PLATFORM");
+#[test]
+fn platform_for_pm_maps_brew_to_macos() {
+    // arrange
+    let pm = Some("brew");
+    // act
+    let platform = platform_for_pm(pm);
+    // assert
+    assert_eq!(platform, Platform::MacOS);
 }
 
 #[test]
-fn overridden_platform_parses_arch() {
+fn platform_for_pm_maps_apt_to_debian() {
     // arrange
-    let mut result = None;
+    let pm = Some("apt");
     // act
-    with_platform_env("arch", || result = overridden_platform());
+    let platform = platform_for_pm(pm);
     // assert
-    assert_eq!(result, Some(Platform::Arch));
+    assert_eq!(platform, Platform::Debian);
 }
 
 #[test]
-fn overridden_platform_parses_debian_aliases() {
+fn platform_for_pm_maps_pacman_to_arch() {
     // arrange
-    let mut result = None;
+    let pm = Some("pacman");
     // act
-    with_platform_env("ubuntu", || result = overridden_platform());
+    let platform = platform_for_pm(pm);
     // assert
-    assert_eq!(result, Some(Platform::Debian));
+    assert_eq!(platform, Platform::Arch);
 }
 
 #[test]
-fn overridden_platform_ignores_unknown() {
+fn platform_for_pm_unknown_name_is_unknown_platform() {
     // arrange
-    let mut result = Some(Platform::MacOS);
+    let pm = Some("whatever");
     // act
-    with_platform_env("windows", || result = overridden_platform());
+    let platform = platform_for_pm(pm);
     // assert
-    assert_eq!(result, None);
+    assert_eq!(platform, Platform::Unknown);
 }
 
 #[test]
-fn overridden_platform_none_without_env() {
+fn platform_for_pm_none_is_unknown_platform() {
     // arrange
-    std::env::remove_var("QWERT_PLATFORM");
+    let pm = None;
     // act
-    let result = overridden_platform();
+    let platform = platform_for_pm(pm);
     // assert
-    assert_eq!(result, None);
+    assert_eq!(platform, Platform::Unknown);
+}
+
+#[test]
+fn installer_uses_system_layout() {
+    // arrange — the qwert install layout is `/opt/qwert/bin` on every OS
+    // act
+    let inst = installer();
+    // assert
+    assert_eq!(inst.binary_path().to_string_lossy(), "/opt/qwert/bin/qwert");
+    assert_eq!(inst.symlink_path().to_string_lossy(), "/usr/local/bin/qwert");
 }

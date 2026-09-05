@@ -1,7 +1,6 @@
 use anyhow::Result;
 
 use crate::config::qwert_yml;
-use crate::platform;
 use crate::recipe::{index, runner};
 use crate::ui::printer;
 
@@ -14,16 +13,16 @@ pub fn run() -> Result<()> {
     printer::h1("Doctor");
     printer::blank();
 
-    // Platform
-    let platform = platform::detect();
-    let machine_identity = crate::config::machine::MachineIdentity::load()?;
-    if matches!(platform, platform::Platform::Unknown) {
-        printer::failed("platform", "could not detect the package manager");
-        printer::info("Set it explicitly: `qwert platform <macos|debian|arch>`.");
-    } else if let Some(p) = machine_identity.platform.as_deref() {
-        printer::ok("platform", &format!("{} (override: {})", platform, p));
-    } else {
-        printer::ok("platform", &platform.to_string());
+    // Platform + package manager (yuiop)
+    match crate::adapters::yuiop::platform_name() {
+        Some(pm) => printer::ok("platform", &format!("{} (yuiop)", pm)),
+        None => {
+            printer::failed("platform", "could not detect the platform");
+            printer::info("install yuiop: curl -fsSL https://raw.githubusercontent.com/br4zz4/yuiop/main/install.sh | bash");
+            if crate::adapters::yuiop::available() {
+                printer::info("set it explicitly: `qwert platform <macos|debian|arch>`");
+            }
+        }
     }
 
     // Config dir
@@ -61,6 +60,7 @@ pub fn run() -> Result<()> {
     }
 
     // Machine identity
+    let machine_identity = crate::config::machine::MachineIdentity::load()?;
     let profile = machine_identity.active_profile().to_string();
     if machine_identity.profile.is_none() {
         printer::info(&format!("machine profile: none (using '{}') — run `qwert profile <name>`", profile));
