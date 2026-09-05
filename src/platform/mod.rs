@@ -67,9 +67,31 @@ impl std::fmt::Display for Platform {
     }
 }
 
+/// Read an explicit platform override from machine.yml (`qwert platform <platform>`)
+/// or the QWERT_PLATFORM env var.
+fn overridden_platform() -> Option<Platform> {
+    let raw = std::env::var("QWERT_PLATFORM")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            crate::config::machine::MachineIdentity::load()
+                .ok()
+                .and_then(|m| m.platform)
+        })?;
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "macos" | "mac" | "darwin" => Some(Platform::MacOS),
+        "debian" | "ubuntu" | "debian-based" => Some(Platform::Debian),
+        "arch" | "manjaro" | "arch-based" => Some(Platform::Arch),
+        _ => None,
+    }
+}
+
 pub fn detect() -> Platform {
     if cfg!(target_os = "macos") {
         return Platform::MacOS;
+    }
+    if let Some(p) = overridden_platform() {
+        return p;
     }
     if cfg!(target_os = "linux") {
         if std::path::Path::new("/usr/bin/apt-get").exists() {
@@ -167,3 +189,7 @@ pub fn current() -> Box<dyn PlatformOps> {
         Platform::Unknown => Box::new(impls::linux::Linux),
     }
 }
+
+#[cfg(test)]
+#[path = "tests/platform.rs"]
+mod tests;

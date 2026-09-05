@@ -2,21 +2,26 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-/// Machine-local identity: which profile this machine should apply.
-/// A machine runs exactly one profile. Stored in ~/.local/share/qwert/machine.yml;
-/// overridden by QWERT_PROFILE env var.
+/// Machine-local identity: which profile and which platform this machine runs.
+/// A machine runs exactly one profile and one platform. Stored in
+/// ~/.local/share/qwert/machine.yml; overridden by QWERT_PROFILE and QWERT_PLATFORM env vars.
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct MachineIdentity {
     /// The active profile for this machine. None = not configured yet.
     #[serde(default)]
     pub profile: Option<String>,
+    /// Explicit platform override (macos|debian|arch). None = auto-detect.
+    #[serde(default)]
+    pub platform: Option<String>,
 }
 
 impl MachineIdentity {
-    /// Load from env override (QWERT_PROFILE) or machine.yml.
+    /// Load from env overrides (QWERT_PROFILE / QWERT_PLATFORM) or machine.yml.
     pub fn load() -> Result<Self> {
-        if let Ok(env) = std::env::var("QWERT_PROFILE") {
-            return Ok(Self::from_env(&env));
+        let env_profile = std::env::var("QWERT_PROFILE").ok();
+        let env_platform = std::env::var("QWERT_PLATFORM").ok();
+        if env_profile.is_some() || env_platform.is_some() {
+            return Ok(Self::from_env(env_profile.as_deref(), env_platform.as_deref()));
         }
         Self::load_from(&machine_path())
     }
@@ -34,14 +39,15 @@ impl MachineIdentity {
         self.profile = Some(profile);
     }
 
-    /// Parse a profile name from env override.
-    pub fn from_env(env: &str) -> Self {
-        let profile = if env.trim().is_empty() {
-            None
-        } else {
-            Some(env.trim().to_string())
-        };
-        Self { profile }
+    pub fn set_platform(&mut self, platform: String) {
+        self.platform = Some(platform);
+    }
+
+    /// Parse profile + platform from env overrides.
+    fn from_env(profile: Option<&str>, platform: Option<&str>) -> Self {
+        let profile = profile.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+        let platform = platform.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+        Self { profile, platform }
     }
 
     pub fn load_from(path: &Path) -> Result<Self> {

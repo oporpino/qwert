@@ -74,6 +74,8 @@ fn main() {
 
         Command::Profile { name } => commands::profile_cmd::run(name.as_deref()),
 
+        Command::Platform { platform } => commands::platform_cmd::run(platform.as_deref()),
+
         Command::Completions { shell } => commands::completions::run(&shell),
 
         Command::Hook { phase } => commands::hook::run(&phase),

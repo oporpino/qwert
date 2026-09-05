@@ -16,7 +16,15 @@ pub fn run() -> Result<()> {
 
     // Platform
     let platform = platform::detect();
-    printer::ok("platform", &platform.to_string());
+    let machine_identity = crate::config::machine::MachineIdentity::load()?;
+    if matches!(platform, platform::Platform::Unknown) {
+        printer::failed("platform", "could not detect the package manager");
+        printer::info("Set it explicitly: `qwert platform <macos|debian|arch>`.");
+    } else if let Some(p) = machine_identity.platform.as_deref() {
+        printer::ok("platform", &format!("{} (override: {})", platform, p));
+    } else {
+        printer::ok("platform", &platform.to_string());
+    }
 
     // Config dir
     if config_dir.exists() {
@@ -53,7 +61,6 @@ pub fn run() -> Result<()> {
     }
 
     // Machine identity
-    let machine_identity = crate::config::machine::MachineIdentity::load()?;
     let profile = machine_identity.active_profile().to_string();
     if machine_identity.profile.is_none() {
         printer::info(&format!("machine profile: none (using '{}') — run `qwert profile <name>`", profile));
