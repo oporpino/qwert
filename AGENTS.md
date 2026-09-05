@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 This file provides guidance to Claude Code when working with this repository.
 
@@ -10,6 +10,10 @@ QWERT is a **dev environment manager** — not a package manager. The user decla
 - `~/.qwert/` — the developer's personal dotfiles. Free-form directory, version-controlled in a personal git repo.
 - `~/.local/share/qwert/` — qwert runtime data (recipes, completions, state, hooks, backups). Never edited by the user.
 - `/opt/qwert/bin/qwert` — the binary.
+
+**Package management** delegates to [`yuiop`](https://github.com/br4zz4/yuiop), the universal
+wrapper over `brew`/`apt`/`pacman`. System-package recipes call `yuiop <verb> <canonical> --json`
+via subprocess; qwert no longer resolves package names itself. Custom/GUI recipes stay in qwert.
 
 No env vars needed. No shell config beyond what the installer writes.
 
