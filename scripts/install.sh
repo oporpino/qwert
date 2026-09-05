@@ -94,7 +94,7 @@ main() {
     if command -v yuiop &>/dev/null; then
         ok "yuiop already installed"
     else
-        bash <(curl -fsSL https://raw.githubusercontent.com/br4zz4/yuiop/main/install.sh) || die "failed to install yuiop"
+        curl -fsSL https://raw.githubusercontent.com/br4zz4/yuiop/main/install.sh | bash || die "failed to install yuiop"
         ok "yuiop installed"
     fi
 
