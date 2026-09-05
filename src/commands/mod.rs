@@ -8,7 +8,6 @@ pub mod hook;
 pub mod info;
 pub mod install_cmd;
 pub mod list;
-pub mod platform_cmd;
 pub mod plugin_cmd;
 pub mod profile_cmd;
 pub mod recipes_cmd;

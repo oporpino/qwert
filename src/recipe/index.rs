@@ -2,6 +2,7 @@ use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
 
 use super::schema::{InstallFile, Recipe, RecipeCheck, RecipeMeta, RecipeKind, RecipeSetup, SetupFile};
+use crate::platform;
 
 fn load_toml_opt<T: DeserializeOwned>(path: &Path) -> Option<T> {
     let content = std::fs::read_to_string(path).ok()?;
@@ -9,8 +10,11 @@ fn load_toml_opt<T: DeserializeOwned>(path: &Path) -> Option<T> {
 }
 
 fn default_kind() -> RecipeKind {
-    // Recipes are package-manager agnostic: the platform's PM installs them.
-    RecipeKind::Package
+    match platform::detect() {
+        platform::Platform::MacOS => RecipeKind::Brew,
+        platform::Platform::Arch => RecipeKind::Pacman,
+        platform::Platform::Debian | platform::Platform::Unknown => RecipeKind::Apt,
+    }
 }
 
 fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<SetupFile>, local: bool) -> Recipe {
@@ -24,7 +28,6 @@ fn assemble_recipe(name: &str, install: Option<InstallFile>, setup: Option<Setup
         description: String::new(),
         kind: default_kind(),
         depends: vec![],
-        packages: None,
         pkg: None,
     });
 
